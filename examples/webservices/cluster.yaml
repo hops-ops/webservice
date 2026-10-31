@@ -1,0 +1,11 @@
+apiVersion: workloads.hops.ops.com.ai/v1alpha1
+kind: WebService
+metadata:
+  name: echo
+  namespace: preview-67
+spec:
+  image: hashicorp/http-echo:1.0.0
+  port: 5678
+  exposure: cluster
+  args:
+  - -text=internal-webservice

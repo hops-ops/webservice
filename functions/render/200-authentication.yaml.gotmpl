@@ -1,0 +1,48 @@
+{{- if and $state.platform $state.service.auth }}
+{{- $s := $state.service }}
+{{- $a := $state.platform.auth }}
+---
+apiVersion: application.zitadel.m.crossplane.io/v1alpha1
+kind: Oidc
+metadata:
+  name: {{ $name }}-oidc
+  annotations:
+    {{ setResourceNameAnnotation "oidc" }}
+    {{- with $state.spec.effective.auth.externalName }}
+    crossplane.io/external-name: {{ . | quote }}
+    {{- end }}
+  labels: {{ $s.labels | toJson }}
+spec:
+  managementPolicies: {{ $state.spec.effective.managementPolicies | toJson }}
+  providerConfigRef: {{ $a.providerConfigRef | default (dict "name" "default" "kind" "ClusterProviderConfig") | toJson }}
+  writeConnectionSecretToRef:
+    name: {{ $name }}-oidc
+  forProvider:
+    name: {{ printf "%s-%s" $namespace $name | quote }}
+    projectId: {{ $a.projectId | quote }}
+    appType: OIDC_APP_TYPE_WEB
+    authMethodType: OIDC_AUTH_METHOD_TYPE_BASIC
+    grantTypes: [OIDC_GRANT_TYPE_AUTHORIZATION_CODE, OIDC_GRANT_TYPE_REFRESH_TOKEN]
+    responseTypes: [OIDC_RESPONSE_TYPE_CODE]
+    redirectUris:
+      - {{ printf "%s://%s/oauth2/callback" (ternary "https" "http" $s.tls) $s.host | quote }}
+    accessTokenType: OIDC_TOKEN_TYPE_JWT
+    idTokenRoleAssertion: true
+    idTokenUserinfoAssertion: true
+    accessTokenRoleAssertion: true
+    devMode: {{ not $s.tls }}
+{{- $meta := dict "name" (printf "%s-login" $name) "namespace" $namespace "labels" $s.labels }}
+{{- $secret := dict "apiVersion" "v1" "kind" "Secret" "metadata" $meta "type" "Opaque" }}
+{{- $ref := dict "patchesFrom" (dict "apiVersion" "v1" "kind" "Secret" "namespace" $namespace "name" (printf "%s-oidc" $name) "fieldPath" "data") "toFieldPath" "data" }}
+{{ include "webservice.object" (dict "state" $state "key" "client-secret" "manifest" $secret "references" (list $ref)) }}
+{{ include "webservice.usage" (dict "state" $state "by" "client-secret" "of" "oidc" "ofApi" "application.zitadel.m.crossplane.io/v1alpha1" "ofKind" "Oidc") }}
+{{- $gen := dict "apiVersion" "generators.external-secrets.io/v1alpha1" "kind" "Password" "metadata" (dict "name" (printf "%s-cookie" $name) "namespace" $namespace "labels" $s.labels) "spec" (dict "length" 32 "digits" 8 "symbols" 0 "noUpper" false "allowRepeat" true) }}
+{{ include "webservice.object" (dict "state" $state "key" "cookie-generator" "manifest" $gen) }}
+{{- $cookie := dict "apiVersion" "external-secrets.io/v1" "kind" "ExternalSecret" "metadata" (dict "name" (printf "%s-cookie" $name) "namespace" $namespace "labels" $s.labels) "spec" (dict "refreshPolicy" "CreatedOnce" "target" (dict "name" (printf "%s-cookie" $name) "creationPolicy" "Owner") "dataFrom" (list (dict "sourceRef" (dict "generatorRef" (dict "apiVersion" "generators.external-secrets.io/v1alpha1" "kind" "Password" "name" (printf "%s-cookie" $name)))))) }}
+{{ include "webservice.object" (dict "state" $state "key" "cookie" "manifest" $cookie "policy" "DeriveFromObject") }}
+{{ include "webservice.usage" (dict "state" $state "by" "cookie" "of" "cookie-generator") }}
+{{- with $a.caBundle }}
+{{- $ca := dict "apiVersion" "v1" "kind" "ConfigMap" "metadata" (dict "name" (printf "%s-issuer-ca" $name) "namespace" $namespace "labels" $s.labels) "data" (dict "ca.crt" .) }}
+{{ include "webservice.object" (dict "state" $state "key" "issuer-ca" "manifest" $ca) }}
+{{- end }}
+{{- end }}

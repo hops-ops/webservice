@@ -1,0 +1,56 @@
+name: on-push-main
+'on':
+  push:
+    branches:
+    - main
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+  issues: write
+  id-token: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+    - uses: actions/checkout@v6
+    - uses: upbound/action-up@v1.0.0
+      with:
+        skip-login: true
+    - name: Install Crossplane CLI
+      run: 'curl -fsSL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh
+        | XP_VERSION=v2.5.0 sh
+
+        sudo install crossplane /usr/local/bin/crossplane'
+    - name: Install Hops CLI
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: 'gh release download v0.53.2 --repo hops-ops/hops-cli --pattern hops-cli-Linux-musl-x86_64.tar.gz
+        --dir /tmp/hops-cli
+
+        tar -xzf /tmp/hops-cli/hops-cli-Linux-musl-x86_64.tar.gz -C /tmp/hops-cli
+
+        sudo install /tmp/hops-cli/hops /usr/local/bin/hops'
+    - name: Render and validate every example with platform fixture
+      run: 'make render:all > /tmp/render.yaml
+
+        make validate:all'
+  test:
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@v2.20.0
+  e2e:
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@v2.20.0
+    with:
+      aws: false
+      timeout-minutes: 35
+      debug-resource-types: '["webservices.workloads.hops.ops.com.ai","knativestacks.hops.ops.com.ai","istiostacks.hops.ops.com.ai"]'
+  version-and-tag:
+    needs:
+    - validate
+    - test
+    - e2e
+    uses: unbounded-tech/workflow-vnext-tag/.github/workflows/workflow.yaml@v1.21.0
+    secrets:
+      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+    with:
+      useDeployKey: true

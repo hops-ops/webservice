@@ -1,0 +1,94 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard"
+  ],
+  "crossplane": {
+    "managerFilePatterns": [
+      "/\\.yaml$/",
+      "/\\.yaml\\.gotmpl$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Automerge minor and patch updates that pass all checks",
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Disable automatic updates for all hops-ops Docker images",
+      "matchDatasources": [
+        "docker"
+      ],
+      "enabled": false,
+      "matchPackageNames": [
+        "/^hops-ops//"
+      ]
+    },
+    {
+      "description": "Use feat(deps): commit prefix for hops-ops Crossplane packages (github-releases datasource)",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "semanticCommitType": "feat",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "description": "Use fix(deps): commit prefix for other Crossplane packages from Docker registries",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "semanticCommitType": "feat",
+      "semanticCommitScope": "deps"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "hops-ops Crossplane configurations (tracked via GitHub Releases)",
+      "managerFilePatterns": [
+        "apis/**/configuration.yaml",
+        "upbound.yaml"
+      ],
+      "matchStrings": [
+        "\\s*(configuration|function|package|provider):\\s*ghcr\\.io/hops-ops/(?<depName>.*?)\\s*version:\\s*(\"|')>=(?<currentValue>.*?)(\"|')\\s*"
+      ],
+      "datasourceTemplate": "github-releases",
+      "packageNameTemplate": "hops-ops/{{depName}}"
+    },
+    {
+      "customType": "regex",
+      "description": "hops-ops packages in E2E tests (tracked via GitHub Releases)",
+      "managerFilePatterns": [
+        "tests/**/main.k"
+      ],
+      "matchStrings": [
+        "package\\s*=\\s*\"ghcr\\.io/(?<depName>hops-ops/[^:]+):v?(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "packageNameTemplate": "{{depName}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Crossplane packages from other registries (tracked via Docker tags)",
+      "managerFilePatterns": [
+        "apis/**/configuration.yaml",
+        "upbound.yaml"
+      ],
+      "matchStrings": [
+        "\\s*(configuration|function|package|provider):\\s*(?<registryUrl>[^/]+)\\/(?<orgName>[^/]+)\\/(?<repoName>[^/\\s]+)\\s*version:\\s*(\"|')>=(?<currentValue>.*?)(\"|')\\s*"
+      ],
+      "datasourceTemplate": "docker",
+      "registryUrlTemplate": "https://{{registryUrl}}",
+      "depNameTemplate": "{{orgName}}/{{repoName}}",
+      "packageNameTemplate": "{{orgName}}/{{repoName}}"
+    }
+  ]
+}

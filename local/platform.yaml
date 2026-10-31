@@ -1,0 +1,26 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: webservice-local
+data:
+  baseDomain: webservice.localhost
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig
+  privateGateway:
+    namespace: istio-ingress
+    service: webservice-private-istio.istio-ingress.svc.cluster.local
+  knativeLocalGateway:
+    name: knative-local-gateway-istio
+    namespace: knative-serving
+    port: 80
+  auth:
+    issuerURL: http://auth.gitkb.localhost
+    projectId: REPLACE_FROM_LOCAL_ZITADEL
+    allowedGroups:
+    - platform.developer
+    providerConfigRef:
+      name: default
+      kind: ClusterProviderConfig
+  tls:
+    enabled: false

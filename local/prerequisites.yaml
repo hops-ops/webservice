@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: websvc-54
+  labels:
+    hops.ops.com.ai/webservice-test: 'true'
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: websvc-67
+  labels:
+    hops.ops.com.ai/webservice-test: 'true'
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: knative-local-gateway
+  namespace: knative-serving
+  labels:
+    hops.ops.com.ai/webservice-test: 'true'
+spec:
+  gatewayClassName: istio
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All
+  infrastructure:
+    parametersRef:
+      group: ''
+      kind: ConfigMap
+      name: webservice-local-gateway
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: webservice-private
+  namespace: istio-ingress
+  labels:
+    hops.ops.com.ai/webservice-test: 'true'
+spec:
+  gatewayClassName: istio
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+    allowedRoutes:
+      namespaces:
+        from: All
+  - name: tls-transport
+    port: 443
+    protocol: HTTPS
+    hostname: bootstrap.webservice.localhost
+    allowedRoutes:
+      namespaces:
+        from: Same
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: webservice-issuer
+  infrastructure:
+    parametersRef:
+      group: ''
+      kind: ConfigMap
+      name: webservice-local-gateway
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webservice-local-gateway
+  namespace: istio-ingress
+data:
+  service: "spec:\n  type: ClusterIP\n  ports:\n    - name: http\n      port: 80\n\
+    \      nodePort: null\n"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webservice-local-gateway
+  namespace: knative-serving
+data:
+  service: "spec:\n  type: ClusterIP\n  ports:\n    - name: http\n      port: 80\n\
+    \      nodePort: null\n"

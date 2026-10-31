@@ -1,0 +1,75 @@
+apiVersion: workloads.hops.ops.com.ai/v1alpha1
+kind: WebService
+metadata:
+  name: echo
+  namespace: websvc-54
+spec:
+  image: hashicorp/http-echo:1.0.0
+  port: 5678
+  args:
+  - -text=echo-websvc-54
+  platformRef:
+    name: local
+  exposure: private
+  scaling:
+    minReplicas: 0
+  podTemplate:
+    securityContext:
+      runAsUser: 65532
+---
+apiVersion: workloads.hops.ops.com.ai/v1alpha1
+kind: WebService
+metadata:
+  name: echo
+  namespace: websvc-67
+spec:
+  image: hashicorp/http-echo:1.0.0
+  port: 5678
+  args:
+  - -text=echo-websvc-67
+  platformRef:
+    name: local
+  exposure: private
+  scaling:
+    minReplicas: 0
+  podTemplate:
+    securityContext:
+      runAsUser: 65532
+---
+apiVersion: workloads.hops.ops.com.ai/v1alpha1
+kind: WebService
+metadata:
+  name: api
+  namespace: websvc-67
+spec:
+  image: hashicorp/http-echo:1.0.0
+  port: 5678
+  args:
+  - -text=api-websvc-67
+  platformRef:
+    name: local
+  exposure: cluster
+  scaling:
+    minReplicas: 0
+  podTemplate:
+    securityContext:
+      runAsUser: 65532
+---
+apiVersion: workloads.hops.ops.com.ai/v1alpha1
+kind: WebService
+metadata:
+  name: gateway
+  namespace: websvc-67
+spec:
+  image: hashicorp/http-echo:1.0.0
+  port: 5678
+  args:
+  - -text=gateway-websvc-67
+  platformRef:
+    name: local
+  exposure: public
+  scaling:
+    minReplicas: 0
+  podTemplate:
+    securityContext:
+      runAsUser: 65532

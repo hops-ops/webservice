@@ -1,0 +1,20 @@
+{{- if $state.platform }}
+{{- $eff := $state.spec.effective }}
+{{- if not (has $eff.exposure (list "private" "cluster" "public")) }}{{- fail "exposure must be private, cluster or public" }}{{- end }}
+{{- $p := $state.platform }}
+{{- $host := printf "%s.%s.%s" $name $namespace ($p.baseDomain | default "") }}
+{{- $private := eq $eff.exposure "private" }}
+{{- $auth := $eff.auth.enabled }}
+{{- $tls := (mergeOverwrite (dict "enabled" true) ($p.tls | default dict)).enabled }}
+{{- if and (ne $eff.exposure "cluster") (empty $p.baseDomain) }}{{- fail "platform baseDomain is required for private/public exposure" }}{{- end }}
+{{- if and $private (or (empty (dig "privateGateway" "service" "" $p)) (empty (dig "privateGateway" "namespace" "" $p))) }}{{- fail "private exposure requires a platform privateGateway service and namespace" }}{{- end }}
+{{- if and $auth (eq $eff.exposure "cluster") }}{{- fail "browser authentication requires private or public exposure" }}{{- end }}
+{{- $identity := $p.auth | default dict }}
+{{- $groups := $eff.auth.allowedGroups | default ($identity.allowedGroups | default list) }}
+{{- if and $auth (or (empty $identity.issuerURL) (empty $identity.projectId) (empty $groups)) }}{{- fail "authentication requires platform issuerURL, projectId and allowedGroups" }}{{- end }}
+{{- if and $auth (eq (int $eff.port) 4180) }}{{- fail "port 4180 is reserved for the authentication proxy" }}{{- end }}
+{{- if hasKey ($eff.podTemplate | default dict) "containers" }}{{- fail "podTemplate.containers is reserved" }}{{- end }}
+{{- $gatewayName := printf "%s-%s" $name $namespace }}
+{{- if gt (len $gatewayName) 63 }}{{- $gatewayName = printf "%s-%s" (trunc 50 $gatewayName | trimSuffix "-") (sha256sum $gatewayName | trunc 12) }}{{- end }}
+{{- $_ := set $state "service" (dict "name" $name "namespace" $namespace "host" $host "clusterHost" (printf "%s.%s.svc.cluster.local" $name $namespace) "gatewayName" $gatewayName "private" $private "auth" $auth "tls" $tls "groups" $groups "labels" $eff.labels "provider" ($p.providerConfigRef | default (dict "name" "default" "kind" "ClusterProviderConfig"))) }}
+{{- end }}

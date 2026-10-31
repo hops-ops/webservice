@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-domain
+  namespace: knative-serving
+data:
+  webservice.localhost: ''
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-gateway
+  namespace: knative-serving
+data:
+  external-gateways: "- class: istio\n  gateway: istio-ingress/platform\n  service:\
+    \ istio-ingress/platform-istio\n"
+  local-gateways: "- class: istio\n  gateway: knative-serving/knative-local-gateway\n\
+    \  service: knative-serving/knative-local-gateway-istio\n"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-features
+  namespace: knative-serving
+data:
+  kubernetes.podspec-securitycontext: enabled

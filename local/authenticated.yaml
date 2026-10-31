@@ -1,0 +1,20 @@
+apiVersion: workloads.hops.ops.com.ai/v1alpha1
+kind: WebService
+metadata:
+  name: login
+  namespace: websvc-67
+spec:
+  image: hashicorp/http-echo:1.0.0
+  port: 5678
+  args:
+  - -text=echo-websvc-54
+  platformRef:
+    name: local
+  exposure: private
+  scaling:
+    minReplicas: 0
+  podTemplate:
+    securityContext:
+      runAsUser: 65532
+  auth:
+    enabled: true

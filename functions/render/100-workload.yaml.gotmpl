@@ -1,0 +1,49 @@
+{{- if $state.platform }}
+{{- $s := $state.service }}
+{{- $e := $state.spec.effective }}
+{{- $annotations := dict "autoscaling.knative.dev/min-scale" (toString $e.scaling.minReplicas) }}
+{{- with $e.scaling.maxReplicas }}{{- $_ := set $annotations "autoscaling.knative.dev/max-scale" (toString .) }}{{- end }}
+{{- $app := dict "name" "app" "image" $e.image "env" ($e.env | default list) "resources" ($e.resources | default dict) "securityContext" (dict "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL"))) }}
+{{- range $field := list "command" "args" }}{{- with (get $e $field) }}{{- $_ := set $app $field . }}{{- end }}{{- end }}
+{{- range $from, $to := dict "readiness" "readinessProbe" "liveness" "livenessProbe" "startup" "startupProbe" }}
+  {{- with (get ($e.probes | default dict) $from) }}{{- $_ := set $app $to . }}{{- end }}
+{{- end }}
+{{- $containers := list }}
+{{- if $s.auth }}
+  {{- $id := $state.platform.auth }}
+  {{- $scheme := ternary "https" "http" $s.tls }}
+  {{- $args := list "--http-address=0.0.0.0:4180" "--provider=oidc" (printf "--oidc-issuer-url=%s" $id.issuerURL) (printf "--redirect-url=%s://%s/oauth2/callback" $scheme $s.host) "--scope=openid profile email" "--code-challenge-method=S256" "--email-domain=*" "--oidc-groups-claim=groups" "--skip-provider-button=true" "--reverse-proxy=true" (printf "--upstream=http://127.0.0.1:%v" $e.port) "--pass-host-header=false" (printf "--cookie-name=_hops_%s" ($name | replace "-" "_")) (printf "--cookie-secure=%t" $s.tls) "--cookie-httponly=true" "--cookie-samesite=lax" "--cookie-refresh=10m" "--cookie-expire=8h" "--silence-ping-logging=true" }}
+  {{- range $s.groups }}{{- $args = append $args (printf "--allowed-group=%s" .) }}{{- end }}
+  {{- $env := list }}
+  {{- range $key, $ref := dict "OAUTH2_PROXY_CLIENT_ID" (dict "name" (printf "%s-login" $name) "key" "attribute.client_id") "OAUTH2_PROXY_CLIENT_SECRET" (dict "name" (printf "%s-login" $name) "key" "attribute.client_secret") "OAUTH2_PROXY_COOKIE_SECRET" (dict "name" (printf "%s-cookie" $name) "key" "password") }}
+    {{- $env = append $env (dict "name" $key "valueFrom" (dict "secretKeyRef" $ref)) }}
+  {{- end }}
+  {{- $proxy := dict "name" "login" "image" ($id.proxyImage | default "quay.io/oauth2-proxy/oauth2-proxy:v7.7.1") "args" $args "env" $env "ports" (list (dict "name" "http1" "containerPort" 4180)) "readinessProbe" (dict "httpGet" (dict "path" "/ready" "port" 4180)) "resources" (dict "requests" (dict "cpu" "15m" "memory" "64Mi")) "securityContext" (dict "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL"))) }}
+  {{- with $id.caBundle }}
+    {{- $_ := set $proxy "args" (append $args "--provider-ca-file=/etc/hops/oidc/ca.crt") }}
+    {{- $_ := set $proxy "volumeMounts" (list (dict "name" "oidc-ca" "mountPath" "/etc/hops/oidc" "readOnly" true)) }}
+  {{- end }}
+  {{- $containers = append $containers $proxy }}
+{{- else }}
+  {{- $_ := set $app "ports" (list (dict "name" "http1" "containerPort" $e.port)) }}
+{{- end }}
+{{- $containers = append $containers $app }}
+{{- $revision := mergeOverwrite (dict "automountServiceAccountToken" false "securityContext" (dict "runAsNonRoot" true "seccompProfile" (dict "type" "RuntimeDefault"))) (deepCopy ($e.podTemplate | default dict)) }}
+{{- $_ := set $revision "containers" $containers }}
+{{- if and $s.auth (($state.platform.auth | default dict).caBundle) }}
+  {{- $_ := set $revision "volumes" (append ($revision.volumes | default list) (dict "name" "oidc-ca" "configMap" (dict "name" (printf "%s-issuer-ca" $name)))) }}
+{{- end }}
+{{- $_ := set $revision "timeoutSeconds" ($e.requestTimeoutSeconds | default 300) }}
+{{- if hasKey $e.scaling "concurrency" }}{{- $_ := set $revision "containerConcurrency" $e.scaling.concurrency }}{{- end }}
+{{- $labels := deepCopy $s.labels }}
+{{- if ne $e.exposure "public" }}{{- $_ := set $labels "networking.knative.dev/visibility" "cluster-local" }}{{- end }}
+{{- $manifest := dict "apiVersion" "serving.knative.dev/v1" "kind" "Service" "metadata" (dict "name" $name "namespace" $namespace "labels" $labels "annotations" (dict "external-dns.alpha.kubernetes.io/cloudflare-proxied" "false")) "spec" (dict "template" (dict "metadata" (dict "labels" $s.labels "annotations" $annotations) "spec" $revision)) }}
+{{ include "webservice.object" (dict "state" $state "key" "service" "manifest" $manifest "policy" "DeriveFromObject") }}
+{{- if $s.auth }}
+{{ include "webservice.usage" (dict "state" $state "by" "service" "of" "client-secret") }}
+{{ include "webservice.usage" (dict "state" $state "by" "service" "of" "cookie") }}
+{{- if ($state.platform.auth | default dict).caBundle }}
+{{ include "webservice.usage" (dict "state" $state "by" "service" "of" "issuer-ca") }}
+{{- end }}
+{{- end }}
+{{- end }}

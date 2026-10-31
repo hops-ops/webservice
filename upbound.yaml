@@ -1,0 +1,27 @@
+apiVersion: meta.dev.upbound.io/v2alpha1
+kind: Project
+metadata:
+  name: webservice
+spec:
+  dependsOn:
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Function
+    package: xpkg.crossplane.io/crossplane-contrib/function-auto-ready
+    version: '>=v0.6.4'
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Provider
+    package: xpkg.crossplane.io/crossplane-contrib/provider-kubernetes
+    version: '>=v1'
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Provider
+    package: xpkg.crossplane.io/crossplane-contrib/provider-upjet-zitadel
+    version: '>=v0.1.1'
+  description: HTTP services with private-default exposure, TLS, and optional platform
+    login.
+  license: Apache-2.0
+  maintainer: Patrick Lee Scott <pat@patscott.io>
+  readme: |-
+    # WebService
+    Deploy HTTP workloads with platform routing, TLS and optional authentication.
+  repository: ghcr.io/hops-ops/webservice
+  source: github.com/hops-ops/webservice

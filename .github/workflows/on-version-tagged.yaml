@@ -1,0 +1,26 @@
+name: promote
+on:
+  push:
+    tags:
+    - v*.*.*
+
+permissions:
+  packages: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+
+  publish:
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/publish.yaml@v2.20.0
+    secrets: inherit
+    with:
+      tag: ${{ github.ref_name }}
+
+  release:
+    needs: publish
+    uses: unbounded-tech/workflow-simple-release/.github/workflows/workflow.yaml@v2.1.1
+    with:
+      tag: ${{ github.ref_name }}
+      name: ${{ github.ref_name }}

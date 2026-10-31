@@ -1,5 +1,40 @@
 import models.io.upbound.dev.meta.v1alpha1 as metav1alpha1
 
+_platform = {
+  "apiVersion": "apiextensions.crossplane.io/v1beta1",
+  "kind": "EnvironmentConfig",
+  "metadata": {
+    "name": "webservice-default"
+  },
+  "data": {
+    "baseDomain": "example.com",
+    "providerConfigRef": {
+      "name": "default",
+      "kind": "ClusterProviderConfig"
+    },
+    "privateGateway": {
+      "namespace": "istio-ingress",
+      "service": "private-preview-istio.istio-ingress.svc.cluster.local"
+    },
+    "knativeLocalGateway": {
+      "name": "knative-local-gateway-istio",
+      "namespace": "knative-serving",
+      "port": 80
+    },
+    "auth": {
+      "issuerURL": "https://auth.example.com",
+      "projectId": "example-project",
+      "allowedGroups": [
+        "platform.developer"
+      ],
+      "providerConfigRef": {
+        "name": "default",
+        "kind": "ClusterProviderConfig"
+      }
+    }
+  }
+}
+
 items = [
 metav1alpha1.CompositionTest {
   "metadata": {
@@ -23,40 +58,7 @@ metav1alpha1.CompositionTest {
       }
     },
     "extraResources": [
-      {
-        "apiVersion": "apiextensions.crossplane.io/v1beta1",
-        "kind": "EnvironmentConfig",
-        "metadata": {
-          "name": "webservice-default"
-        },
-        "data": {
-          "baseDomain": "example.com",
-          "providerConfigRef": {
-            "name": "default",
-            "kind": "ClusterProviderConfig"
-          },
-          "privateGateway": {
-            "namespace": "istio-ingress",
-            "service": "private-preview-istio.istio-ingress.svc.cluster.local"
-          },
-          "knativeLocalGateway": {
-            "name": "knative-local-gateway-istio",
-            "namespace": "knative-serving",
-            "port": 80
-          },
-          "auth": {
-            "issuerURL": "https://auth.example.com",
-            "projectId": "example-project",
-            "allowedGroups": [
-              "platform.developer"
-            ],
-            "providerConfigRef": {
-              "name": "default",
-              "kind": "ClusterProviderConfig"
-            }
-          }
-        }
-      }
+      _platform
     ],
     "observedResources": [],
     "assertResources": [
@@ -146,40 +148,7 @@ metav1alpha1.CompositionTest {
       }
     },
     "extraResources": [
-      {
-        "apiVersion": "apiextensions.crossplane.io/v1beta1",
-        "kind": "EnvironmentConfig",
-        "metadata": {
-          "name": "webservice-default"
-        },
-        "data": {
-          "baseDomain": "example.com",
-          "providerConfigRef": {
-            "name": "default",
-            "kind": "ClusterProviderConfig"
-          },
-          "privateGateway": {
-            "namespace": "istio-ingress",
-            "service": "private-preview-istio.istio-ingress.svc.cluster.local"
-          },
-          "knativeLocalGateway": {
-            "name": "knative-local-gateway-istio",
-            "namespace": "knative-serving",
-            "port": 80
-          },
-          "auth": {
-            "issuerURL": "https://auth.example.com",
-            "projectId": "example-project",
-            "allowedGroups": [
-              "platform.developer"
-            ],
-            "providerConfigRef": {
-              "name": "default",
-              "kind": "ClusterProviderConfig"
-            }
-          }
-        }
-      }
+      _platform
     ],
     "observedResources": [],
     "assertResources": [
@@ -227,40 +196,7 @@ metav1alpha1.CompositionTest {
       }
     },
     "extraResources": [
-      {
-        "apiVersion": "apiextensions.crossplane.io/v1beta1",
-        "kind": "EnvironmentConfig",
-        "metadata": {
-          "name": "webservice-default"
-        },
-        "data": {
-          "baseDomain": "example.com",
-          "providerConfigRef": {
-            "name": "default",
-            "kind": "ClusterProviderConfig"
-          },
-          "privateGateway": {
-            "namespace": "istio-ingress",
-            "service": "private-preview-istio.istio-ingress.svc.cluster.local"
-          },
-          "knativeLocalGateway": {
-            "name": "knative-local-gateway-istio",
-            "namespace": "knative-serving",
-            "port": 80
-          },
-          "auth": {
-            "issuerURL": "https://auth.example.com",
-            "projectId": "example-project",
-            "allowedGroups": [
-              "platform.developer"
-            ],
-            "providerConfigRef": {
-              "name": "default",
-              "kind": "ClusterProviderConfig"
-            }
-          }
-        }
-      }
+      _platform
     ],
     "observedResources": [],
     "assertResources": [
@@ -310,40 +246,7 @@ metav1alpha1.CompositionTest {
       }
     },
     "extraResources": [
-      {
-        "apiVersion": "apiextensions.crossplane.io/v1beta1",
-        "kind": "EnvironmentConfig",
-        "metadata": {
-          "name": "webservice-default"
-        },
-        "data": {
-          "baseDomain": "example.com",
-          "providerConfigRef": {
-            "name": "default",
-            "kind": "ClusterProviderConfig"
-          },
-          "privateGateway": {
-            "namespace": "istio-ingress",
-            "service": "private-preview-istio.istio-ingress.svc.cluster.local"
-          },
-          "knativeLocalGateway": {
-            "name": "knative-local-gateway-istio",
-            "namespace": "knative-serving",
-            "port": 80
-          },
-          "auth": {
-            "issuerURL": "https://auth.example.com",
-            "projectId": "example-project",
-            "allowedGroups": [
-              "platform.developer"
-            ],
-            "providerConfigRef": {
-              "name": "default",
-              "kind": "ClusterProviderConfig"
-            }
-          }
-        }
-      }
+      _platform
     ],
     "observedResources": [],
     "assertResources": [
@@ -430,40 +333,7 @@ metav1alpha1.CompositionTest {
       }
     },
     "extraResources": [
-      {
-        "apiVersion": "apiextensions.crossplane.io/v1beta1",
-        "kind": "EnvironmentConfig",
-        "metadata": {
-          "name": "webservice-default"
-        },
-        "data": {
-          "baseDomain": "example.com",
-          "providerConfigRef": {
-            "name": "default",
-            "kind": "ClusterProviderConfig"
-          },
-          "privateGateway": {
-            "namespace": "istio-ingress",
-            "service": "private-preview-istio.istio-ingress.svc.cluster.local"
-          },
-          "knativeLocalGateway": {
-            "name": "knative-local-gateway-istio",
-            "namespace": "knative-serving",
-            "port": 80
-          },
-          "auth": {
-            "issuerURL": "https://auth.example.com",
-            "projectId": "example-project",
-            "allowedGroups": [
-              "platform.developer"
-            ],
-            "providerConfigRef": {
-              "name": "default",
-              "kind": "ClusterProviderConfig"
-            }
-          }
-        }
-      }
+      _platform
     ],
     "observedResources": [],
     "assertResources": [
@@ -520,40 +390,7 @@ metav1alpha1.CompositionTest {
       }
     },
     "extraResources": [
-      {
-        "apiVersion": "apiextensions.crossplane.io/v1beta1",
-        "kind": "EnvironmentConfig",
-        "metadata": {
-          "name": "webservice-default"
-        },
-        "data": {
-          "baseDomain": "example.com",
-          "providerConfigRef": {
-            "name": "default",
-            "kind": "ClusterProviderConfig"
-          },
-          "privateGateway": {
-            "namespace": "istio-ingress",
-            "service": "private-preview-istio.istio-ingress.svc.cluster.local"
-          },
-          "knativeLocalGateway": {
-            "name": "knative-local-gateway-istio",
-            "namespace": "knative-serving",
-            "port": 80
-          },
-          "auth": {
-            "issuerURL": "https://auth.example.com",
-            "projectId": "example-project",
-            "allowedGroups": [
-              "platform.developer"
-            ],
-            "providerConfigRef": {
-              "name": "default",
-              "kind": "ClusterProviderConfig"
-            }
-          }
-        }
-      }
+      _platform
     ],
     "observedResources": [
       {

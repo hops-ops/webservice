@@ -36,7 +36,7 @@ jobs:
 
         tar -xzf /tmp/hops-cli/hops-cli-Linux-musl-x86_64.tar.gz -C /tmp/hops-cli
 
-        sudo install /tmp/hops-cli/hops /usr/local/bin/hops'
+        sudo install /tmp/hops-cli/hops-cli /usr/local/bin/hops'
     - name: Render and validate every example with platform fixture
       run: 'make render:all > /tmp/render.yaml
 

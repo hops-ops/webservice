@@ -1,23 +1,6 @@
 {{- if $state.platform }}
-{{- $obs := $state.observed }}
-{{- $ks := (get $obs "service" | default dict).manifest | default dict }}
-{{- $url := dig "status" "url" "" $ks }}
-{{- if $state.service.private }}
-  {{- $route := (get $obs "route" | default dict).manifest | default dict }}
-  {{- $url = "" }}
-  {{- if (dig "metadata" "uid" "" $route) }}
-    {{- $url = printf "%s://%s" (ternary "https" "http" $state.service.tls) (first $route.spec.hostnames) }}
-  {{- end }}
-{{- end }}
-{{- $ready := (get $obs "service" | default dict).ready | default false }}
-{{- range $key, $entry := $obs }}{{- if not (hasPrefix "usage-" $key) }}{{- $ready = and $ready $entry.ready }}{{- end }}{{- end }}
 ---
 apiVersion: {{ $xr.apiVersion }}
 kind: {{ $xr.kind }}
-status:
-  ready: {{ $ready }}
-  url: {{ $url | quote }}
-  serviceUrl: {{ dig "status" "url" "" $ks | quote }}
-  latestReadyRevision: {{ dig "status" "latestReadyRevisionName" "" $ks | quote }}
-  oidcClientId: {{ dig "resource" "status" "atProvider" "clientId" "" (get $obs "oidc" | default dict) | quote }}
+status: {{ $state.status | toJson }}
 {{- end }}

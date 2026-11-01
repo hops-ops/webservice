@@ -25,6 +25,9 @@ if args.context not in ("kind-hops", "colima"):
 CTX = args.context
 NAMESPACES = ("websvc-54", "websvc-67")
 forwards = []
+owned_namespaces = []
+cleanup_errors = []
+platform_written = False
 
 def kubectl(*parts, doc=None):
     return subprocess.check_output(
@@ -62,7 +65,8 @@ def wait(check, label, timeout=180):
 def ready(kind, name, namespace):
     obj = get(kind, name, namespace)
     return any(c["type"] == "Ready" and c["status"] == "True"
-               and c.get("observedGeneration", obj["metadata"]["generation"]) == obj["metadata"]["generation"]
+               and (c.get("observedGeneration") == obj["metadata"]["generation"]
+                    if kind == "webservice" else c.get("observedGeneration", obj["metadata"]["generation"]) == obj["metadata"]["generation"])
                for c in obj.get("status", {}).get("conditions", []))
 
 def forward(name, target_port):
@@ -87,7 +91,7 @@ def request(port, hostname, tls_context=None):
         sock.sendall(("GET / HTTP/1.1\r\nHost: " + hostname + "\r\nConnection: close\r\n\r\n").encode())
         response = http.client.HTTPResponse(sock)
         response.begin()
-        return response.status, dict(response.getheaders()), response.read()
+        return response.status, {key.lower(): value for key, value in response.getheaders()}, response.read()
     finally:
         sock.close()
 
@@ -97,20 +101,31 @@ def host(name, namespace):
 def absent(kind, namespace):
     return not get(kind, namespace=namespace)["items"]
 
-# These namespaces are exclusive fixtures. Refuse to reuse anyone else's namespace.
+# Refuse to mutate an existing namespace or shared Knative configuration.
 for ns in NAMESPACES:
-    raw = kubectl("get", "namespace", ns, "--ignore-not-found", "-o", "json")
-    if raw.strip():
-        existing = json.loads(raw)
-        assert existing["metadata"].get("labels", {}).get("hops.ops.com.ai/webservice-test") == "true"
-        assert absent("webservices", ns), "fixture namespace already has a WebService"
+    assert not kubectl("get", "namespace", ns, "--ignore-not-found", "-o", "json").strip(), "fixture namespace already exists: " + ns
+assert not kubectl("get", "environmentconfig", "webservice-local", "--ignore-not-found", "-o", "json").strip(), "fixture platform already exists"
+for config in yaml.safe_load_all((ROOT / "local/knative-config.yaml").read_text()):
+    current = get("configmap", config["metadata"]["name"], "knative-serving")
+    assert all(current.get("data", {}).get(key) == value for key, value in config["data"].items()), "prepare isolated Knative prerequisites first: " + config["metadata"]["name"]
+
+def cleanup_step(label, operation):
+    try:
+        operation()
+        return True
+    except Exception as error:
+        cleanup_errors.append(label)
+        print("FAIL cleanup", label, type(error).__name__, flush=True)
+        return False
 
 with tempfile.TemporaryDirectory(prefix="webservice-smoke-") as tmp:
     try:
+        for ns in NAMESPACES:
+            kubectl("create", "-f", "-", doc={"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": ns, "labels": {"hops.ops.com.ai/webservice-test": "true"}}})
+            owned_namespaces.append(ns)
         apply_file("prerequisites.yaml")
         apply_file("tls.yaml")
         apply_file("issuer.yaml")
-        apply_file("knative-config.yaml")
         wait(lambda: ready("certificate.cert-manager.io", "webservice-ca", "cert-manager"), "local CA")
         ca = base64.b64decode(get("secret", "webservice-ca", "cert-manager")["data"]["tls.crt"])
         ca_path = Path(tmp) / "ca.pem"
@@ -122,6 +137,7 @@ with tempfile.TemporaryDirectory(prefix="webservice-smoke-") as tmp:
         platform = yaml.safe_load((ROOT / "local/platform.yaml").read_text())
         platform["data"]["tls"]["enabled"] = True
         platform["data"]["auth"].update(issuerURL="https://auth.gitkb.localhost", projectId=project_id, caBundle=ca.decode())
+        platform_written = True
         apply(platform)
         apply_file("webservices.yaml")
         login = yaml.safe_load((ROOT / "local/authenticated.yaml").read_text())
@@ -131,6 +147,26 @@ with tempfile.TemporaryDirectory(prefix="webservice-smoke-") as tmp:
         for ns, names in [("websvc-54", ["echo"]), ("websvc-67", ["echo", "api", "gateway", "login"])]:
             for name in names:
                 wait(lambda ns=ns, name=name: ready("webservice", name, ns), "ready " + ns + "/" + name)
+        # A healthy login proxy must not hide an unready application container.
+        cookie_before = get("secret", "login-cookie", "websvc-67")["data"]
+        previous_revision = get("ksvc", "login", "websvc-67")["status"]["latestReadyRevisionName"]
+        def patch_probe(port):
+            kubectl("-n", "websvc-67", "patch", "webservice", "login", "--type=merge", "-p", json.dumps({"spec": {"probes": {"readiness": {"tcpSocket": {"port": port}}}}}))
+        def app_probe_blocks():
+            revision = get("ksvc", "login", "websvc-67")["status"]["latestCreatedRevisionName"]
+            if revision == previous_revision:
+                return False
+            for pod in get("pods -l serving.knative.dev/revision=" + revision, namespace="websvc-67")["items"]:
+                statuses = {c["name"]: c["ready"] for c in pod.get("status", {}).get("containerStatuses", [])}
+                if statuses.get("login") is True and statuses.get("app") is False:
+                    return not ready("webservice", "login", "websvc-67")
+            return False
+        patch_probe(5679)
+        wait(app_probe_blocks, "login proxy cannot hide application probe failure")
+        patch_probe(5678)
+        wait(lambda: ready("webservice", "login", "websvc-67"), "application readiness recovery")
+        assert get("secret", "login-cookie", "websvc-67")["data"] == cookie_before
+        print("PASS cookie stable across readiness changes", flush=True)
         private = forward("webservice-private-istio", 443)
         public_http = forward("platform-istio", 80)
         public = forward("platform-istio", 443)
@@ -163,16 +199,27 @@ with tempfile.TemporaryDirectory(prefix="webservice-smoke-") as tmp:
         assert request(private, host("echo", "websvc-54"), tls)[0] == 200
         print("PASS trusted private cold start in", round(time.monotonic() - start, 3), "seconds", flush=True)
     finally:
-        for p in forwards:
-            p.terminate()
-        for p in forwards:
-            p.wait(timeout=10)
-        for ns in NAMESPACES:
-            kubectl("-n", ns, "delete", "webservices", "--all", "--wait=false")
-            wait(lambda ns=ns: absent("webservices", ns) and absent("objects.kubernetes.m.crossplane.io", ns)
-                 and absent("oidcs.application.zitadel.m.crossplane.io", ns), "managed teardown " + ns)
-        kubectl("-n", "websvc-67", "delete", "project.project.zitadel.m.crossplane.io", "webservice-local-test", "--ignore-not-found", "--wait=false")
-        wait(lambda: absent("project.project.zitadel.m.crossplane.io", "websvc-67"), "identity project teardown")
-        for ns in NAMESPACES:
-            kubectl("delete", "namespace", ns, "--wait=false")
-        kubectl("delete", "environmentconfig", "webservice-local", "--ignore-not-found")
+        for process in forwards:
+            cleanup_step("stop port forward", process.terminate)
+        for process in forwards:
+            if not cleanup_step("wait for port forward", lambda process=process: process.wait(timeout=10)):
+                cleanup_step("kill port forward", process.kill)
+        managed_clean = set()
+        for ns in owned_namespaces:
+            deleted = cleanup_step("request workload teardown " + ns, lambda ns=ns: kubectl("-n", ns, "delete", "webservices", "--all", "--wait=false"))
+            if deleted and cleanup_step("managed teardown " + ns, lambda ns=ns: wait(
+                lambda: absent("webservices", ns) and absent("objects.kubernetes.m.crossplane.io", ns)
+                and absent("oidcs.application.zitadel.m.crossplane.io", ns), "managed teardown " + ns)):
+                managed_clean.add(ns)
+        project_clean = False
+        if "websvc-67" in managed_clean:
+            project_clean = cleanup_step("delete identity project", lambda: kubectl("-n", "websvc-67", "delete", "project.project.zitadel.m.crossplane.io", "webservice-local-test", "--ignore-not-found", "--wait=false"))
+            if project_clean:
+                project_clean = cleanup_step("identity project teardown", lambda: wait(lambda: absent("project.project.zitadel.m.crossplane.io", "websvc-67"), "identity project teardown"))
+        for ns in managed_clean:
+            if ns != "websvc-67" or project_clean:
+                cleanup_step("delete owned namespace " + ns, lambda ns=ns: kubectl("delete", "namespace", ns, "--wait=false"))
+        if platform_written and len(managed_clean) == len(owned_namespaces):
+            cleanup_step("delete fixture platform", lambda: kubectl("delete", "environmentconfig", "webservice-local", "--ignore-not-found"))
+        if cleanup_errors:
+            raise RuntimeError("Cleanup incomplete; dependencies preserved where required: " + ", ".join(cleanup_errors))

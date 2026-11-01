@@ -26,6 +26,7 @@ metadata:
 data:
   kubernetes.podspec-securitycontext: enabled
   kubernetes.podspec-hostaliases: enabled
+  multi-container-probing: enabled
 
 ---
 apiVersion: v1

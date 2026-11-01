@@ -41,9 +41,9 @@ Use `env` with Kubernetes `value`/`valueFrom` entries for configuration and same
 
 Set the listening port through `spec.port`; `PORT` is reserved and is supplied to the application with or without the login sidecar.
 
-`podTemplate` passes additional Knative revision settings such as volumes, service account and scheduling. Its `containers` field is reserved; configure the application through the documented fields. Knative feature flags must permit any optional pod settings you select. Current defaults require `kubernetes.podspec-securitycontext: enabled` in Knative Serving, matching the existing Hops/Harmony deployment pattern.
+`podTemplate` passes additional Knative revision settings such as volumes, service account and scheduling. Its `containers` field is reserved; configure the application through the documented fields. Knative feature flags must permit any optional pod settings you select. Current defaults require `kubernetes.podspec-securitycontext: enabled` in Knative Serving, matching the existing Hops/Harmony deployment pattern. Authentication also requires `multi-container-probing: enabled`: the application has a TCP readiness default alongside the proxy readiness check.
 
-An application gateway is another WebService. Its image and environment settings determine upstream routing, trusted headers, cookies and native sessions. This package does not rewrite that application behavior. A UI library is a build artifact; its deployed docs/demo server is the WebService.
+An application gateway is another WebService. Its image and environment settings determine upstream routing, trusted headers, cookies and native sessions. This package does not rewrite that application behavior. The login proxy preserves the incoming Host; private ingress also supplies the original external hostname in `X-Forwarded-Host` after Knative routing rewrites. Configure the application to trust the platform proxy when it needs forwarded origin headers. A UI library is a build artifact; its deployed docs/demo server is the WebService.
 
 ## Enterprise scale
 

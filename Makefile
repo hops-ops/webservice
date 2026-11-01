@@ -1,4 +1,6 @@
 SHELL := /bin/bash
+.DEFAULT_GOAL := build
+CONTEXT ?= kind-hops
 
 PACKAGE ?= webservice
 XRD_DIR := apis/webservices
@@ -75,4 +77,4 @@ publish:
 	up project build --push --tag $(tag)
 
 smoke-local:
-	uv run scripts/local-smoke.py --context kind-hops
+	uv run scripts/local-smoke.py --context $(CONTEXT)

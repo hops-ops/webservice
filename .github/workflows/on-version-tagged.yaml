@@ -14,7 +14,6 @@ jobs:
 
   publish:
     uses: unbounded-tech/workflows-crossplane/.github/workflows/publish.yaml@v2.20.0
-    secrets: inherit
     with:
       tag: ${{ github.ref_name }}
 

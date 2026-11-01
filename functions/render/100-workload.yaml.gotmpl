@@ -11,9 +11,10 @@
 {{- $containers := list }}
 {{- if $s.auth }}
   {{- $_ := set $app "env" (append ($e.env | default list) (dict "name" "PORT" "value" (toString $e.port))) }}
+  {{- if not $app.readinessProbe }}{{- $_ := set $app "readinessProbe" (dict "tcpSocket" (dict "port" $e.port)) }}{{- end }}
   {{- $id := $state.platform.auth }}
   {{- $scheme := ternary "https" "http" $s.tls }}
-  {{- $args := list "--http-address=0.0.0.0:4180" "--provider=oidc" (printf "--oidc-issuer-url=%s" $id.issuerURL) (printf "--redirect-url=%s://%s/oauth2/callback" $scheme $s.host) "--scope=openid profile email" "--code-challenge-method=S256" "--email-domain=*" "--oidc-groups-claim=groups" "--skip-provider-button=true" "--reverse-proxy=true" (printf "--upstream=http://127.0.0.1:%v" $e.port) "--pass-host-header=false" (printf "--cookie-name=_hops_%s" ($name | replace "-" "_")) (printf "--cookie-secure=%t" $s.tls) "--cookie-httponly=true" "--cookie-samesite=lax" "--cookie-refresh=10m" "--cookie-expire=8h" "--silence-ping-logging=true" }}
+  {{- $args := list "--http-address=0.0.0.0:4180" "--provider=oidc" (printf "--oidc-issuer-url=%s" $id.issuerURL) (printf "--redirect-url=%s://%s/oauth2/callback" $scheme $s.host) "--scope=openid profile email" "--code-challenge-method=S256" "--email-domain=*" "--oidc-groups-claim=groups" "--skip-provider-button=true" "--reverse-proxy=true" (printf "--upstream=http://127.0.0.1:%v" $e.port) "--pass-host-header=true" (printf "--cookie-name=_hops_%s" ($name | replace "-" "_")) (printf "--cookie-secure=%t" $s.tls) "--cookie-httponly=true" "--cookie-samesite=lax" "--cookie-refresh=10m" "--cookie-expire=8h" "--silence-ping-logging=true" }}
   {{- range $s.groups }}{{- $args = append $args (printf "--allowed-group=%s" .) }}{{- end }}
   {{- $env := list }}
   {{- range $key, $ref := dict "OAUTH2_PROXY_CLIENT_ID" (dict "name" (printf "%s-login" $name) "key" "attribute.client_id") "OAUTH2_PROXY_CLIENT_SECRET" (dict "name" (printf "%s-login" $name) "key" "attribute.client_secret") "OAUTH2_PROXY_COOKIE_SECRET" (dict "name" (printf "%s-cookie" $name) "key" "password") }}

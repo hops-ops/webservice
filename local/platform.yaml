@@ -15,7 +15,7 @@ data:
     namespace: knative-serving
     port: 80
   auth:
-    issuerURL: http://auth.gitkb.localhost
+    issuerURL: https://auth.gitkb.localhost
     projectId: REPLACE_FROM_LOCAL_ZITADEL
     allowedGroups:
     - platform.developer

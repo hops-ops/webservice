@@ -60,6 +60,5 @@ jobs:
     - validate
     - test
     uses: unbounded-tech/workflows-crossplane/.github/workflows/publish.yaml@v2.20.0
-    secrets: inherit
     with:
       tag: pr-${{ github.event.pull_request.number }}-${{ github.sha }}

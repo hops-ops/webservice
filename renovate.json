@@ -13,7 +13,10 @@
   "packageRules": [
     {
       "description": "Automerge minor and patch updates that pass all checks",
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "automerge": true
     },
     {
@@ -45,7 +48,7 @@
       "matchDatasources": [
         "docker"
       ],
-      "semanticCommitType": "feat",
+      "semanticCommitType": "fix",
       "semanticCommitScope": "deps"
     }
   ],
@@ -70,7 +73,7 @@
         "tests/**/main.k"
       ],
       "matchStrings": [
-        "package\\s*=\\s*\"ghcr\\.io/(?<depName>hops-ops/[^:]+):v?(?<currentValue>[^\"]+)\""
+        "\"?package\"?\\s*(?:=|:)\\s*\"ghcr\\.io/(?<depName>hops-ops/[^:]+):v?(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "github-releases",
       "packageNameTemplate": "{{depName}}"

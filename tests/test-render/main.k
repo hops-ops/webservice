@@ -273,7 +273,7 @@ metav1alpha1.CompositionTest {
             "manifest": {
               "spec": {"template": {"spec": {"containers": [
                 {"name": "login", "ports": [{"name": "http1", "containerPort": 4180}]},
-                {"name": "app", "env": [{"name": "PORT", "value": "5678"}]}
+                {"name": "app", "env": [{"name": "PORT", "value": "5678"}], "readinessProbe": {"tcpSocket": {"port": 5678}}}
               ]}}}
             }
           }

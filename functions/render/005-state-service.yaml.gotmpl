@@ -18,3 +18,9 @@
 {{- if gt (len $gatewayName) 63 }}{{- $gatewayName = printf "%s-%s" (trunc 50 $gatewayName | trimSuffix "-") (sha256sum $gatewayName | trunc 12) }}{{- end }}
 {{- $_ := set $state "service" (dict "name" $name "namespace" $namespace "host" $host "clusterHost" (printf "%s.%s.svc.cluster.local" $name $namespace) "gatewayName" $gatewayName "private" $private "auth" $auth "tls" $tls "groups" $groups "labels" $eff.labels "provider" ($p.providerConfigRef | default (dict "name" "default" "kind" "ClusterProviderConfig"))) }}
 {{- end }}
+
+{{- if and $state.platform $state.service.auth (($state.platform.auth | default dict).caBundle) }}
+  {{- range (($state.spec.effective.podTemplate | default dict).volumes | default list) }}
+    {{- if eq .name "oidc-ca" }}{{- fail "podTemplate volume oidc-ca is reserved for the platform issuer CA" }}{{- end }}
+  {{- end }}
+{{- end }}

@@ -69,26 +69,27 @@ def ready(kind, name, namespace):
                     if kind == "webservice" else c.get("observedGeneration", obj["metadata"]["generation"]) == obj["metadata"]["generation"])
                for c in obj.get("status", {}).get("conditions", []))
 
-def forward(name, target_port):
+def forward(name, target_port, namespace="istio-ingress", resource="svc"):
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
     process = subprocess.Popen(
-        ["kubectl", "--context", CTX, "-n", "istio-ingress", "port-forward",
-         "svc/" + name, str(port) + ":" + str(target_port)],
+        ["kubectl", "--context", CTX, "-n", namespace, "port-forward",
+         resource + "/" + name, str(port) + ":" + str(target_port)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     forwards.append(process)
     wait(lambda: socket.create_connection(("127.0.0.1", port), timeout=1).close() is None,
-         "isolated gateway port forward", timeout=20)
+         "isolated port forward", timeout=20)
     return port
 
-def request(port, hostname, tls_context=None):
+def request(port, hostname, tls_context=None, path="/", extra_headers=None):
     sock = socket.create_connection(("127.0.0.1", port), timeout=30)
     if tls_context:
         sock = tls_context.wrap_socket(sock, server_hostname=hostname)
     try:
-        sock.sendall(("GET / HTTP/1.1\r\nHost: " + hostname + "\r\nConnection: close\r\n\r\n").encode())
+        headers = "".join(key + ": " + value + "\r\n" for key, value in (extra_headers or {}).items())
+        sock.sendall(("GET " + path + " HTTP/1.1\r\nHost: " + hostname + "\r\n" + headers + "Connection: close\r\n\r\n").encode())
         response = http.client.HTTPResponse(sock)
         response.begin()
         return response.status, {key.lower(): value for key, value in response.getheaders()}, response.read()
@@ -152,19 +153,32 @@ with tempfile.TemporaryDirectory(prefix="webservice-smoke-") as tmp:
         previous_revision = get("ksvc", "login", "websvc-67")["status"]["latestReadyRevisionName"]
         def patch_probe(port):
             kubectl("-n", "websvc-67", "patch", "webservice", "login", "--type=merge", "-p", json.dumps({"spec": {"probes": {"readiness": {"tcpSocket": {"port": port}}}}}))
+        blocked_pod = {}
         def app_probe_blocks():
             revision = get("ksvc", "login", "websvc-67")["status"]["latestCreatedRevisionName"]
             if revision == previous_revision:
                 return False
             for pod in get("pods -l serving.knative.dev/revision=" + revision, namespace="websvc-67")["items"]:
                 statuses = {c["name"]: c["ready"] for c in pod.get("status", {}).get("containerStatuses", [])}
-                if statuses.get("login") is True and statuses.get("app") is False:
-                    return not ready("webservice", "login", "websvc-67")
+                if statuses.get("login") is True and statuses.get("app") is True and statuses.get("queue-proxy") is False:
+                    blocked_pod["name"] = pod["metadata"]["name"]
+                    blocked_pod["revision"] = revision
+                    return get("ksvc", "login", "websvc-67")["status"].get("latestReadyRevisionName") != revision
             return False
         patch_probe(5679)
         wait(app_probe_blocks, "login proxy cannot hide application probe failure")
+        proxy_probe = forward(blocked_pod["name"], 4180, "websvc-67", "pod")
+        app_probe = forward(blocked_pod["name"], 5678, "websvc-67", "pod")
+        queue_probe = forward(blocked_pod["name"], 8012, "websvc-67", "pod")
+        wait(lambda: request(proxy_probe, "localhost", path="/ready")[0] == 200, "login proxy itself is healthy")
+        assert request(app_probe, "localhost")[0] == 200
+        assert request(queue_probe, "localhost", extra_headers={"K-Network-Probe": "queue"})[0] == 503
+        print("PASS aggregate readiness rejects failing application probe", flush=True)
         patch_probe(5678)
-        wait(lambda: ready("webservice", "login", "websvc-67"), "application readiness recovery")
+        def app_recovered():
+            status = get("ksvc", "login", "websvc-67")["status"]
+            return ready("webservice", "login", "websvc-67") and status.get("latestCreatedRevisionName") != blocked_pod["revision"] and status.get("latestCreatedRevisionName") == status.get("latestReadyRevisionName")
+        wait(app_recovered, "application readiness recovery")
         assert get("secret", "login-cookie", "websvc-67")["data"] == cookie_before
         print("PASS cookie stable across readiness changes", flush=True)
         private = forward("webservice-private-istio", 443)
@@ -218,7 +232,7 @@ with tempfile.TemporaryDirectory(prefix="webservice-smoke-") as tmp:
                 project_clean = cleanup_step("identity project teardown", lambda: wait(lambda: absent("project.project.zitadel.m.crossplane.io", "websvc-67"), "identity project teardown"))
         for ns in managed_clean:
             if ns != "websvc-67" or project_clean:
-                cleanup_step("delete owned namespace " + ns, lambda ns=ns: kubectl("delete", "namespace", ns, "--wait=false"))
+                cleanup_step("delete owned namespace " + ns, lambda ns=ns: kubectl("delete", "namespace", ns, "--wait=true", "--timeout=90s"))
         if platform_written and len(managed_clean) == len(owned_namespaces):
             cleanup_step("delete fixture platform", lambda: kubectl("delete", "environmentconfig", "webservice-local", "--ignore-not-found"))
         if cleanup_errors:

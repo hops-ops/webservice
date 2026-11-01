@@ -253,11 +253,29 @@ metav1alpha1.CompositionTest {
       {
         "apiVersion": "application.zitadel.m.crossplane.io/v1alpha1",
         "kind": "Oidc",
+        "metadata": {"name": "echo-oidc"},
         "spec": {
           "forProvider": {
             "redirectUris": [
               "https://echo.preview-67.example.com/oauth2/callback"
             ]
+          }
+        }
+      },
+      {
+        "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+        "kind": "Object",
+        "metadata": {
+          "name": "echo-service"
+        },
+        "spec": {
+          "forProvider": {
+            "manifest": {
+              "spec": {"template": {"spec": {"containers": [
+                {"name": "login", "ports": [{"name": "http1", "containerPort": 4180}]},
+                {"name": "app", "env": [{"name": "PORT", "value": "5678"}]}
+              ]}}}
+            }
           }
         }
       },

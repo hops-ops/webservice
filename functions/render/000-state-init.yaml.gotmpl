@@ -19,6 +19,9 @@ requirements:
 {{- if and (hasKey (.extraResources | default dict) "platform") (eq (len $extra) 0) }}
   {{- fail (printf "operator platform configuration %s is missing" $platformName) }}
 {{- end }}
+{{- if and (gt (len $extra) 0) (empty $platform) }}
+  {{- fail (printf "operator platform configuration %s data is required" $platformName) }}
+{{- end }}
 {{- $defaults := dict "hops.ops.com.ai/managed" "true" "hops.ops.com.ai/webservice" $name }}
 {{- $eff := deepCopy $spec }}
 {{- $_ := set $eff "exposure" ($spec.exposure | default "private") }}

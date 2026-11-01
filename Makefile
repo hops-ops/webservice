@@ -49,6 +49,7 @@ validate\:all: generate-configuration
 		up composition render --xrd=$(DEFINITION) $(COMPOSITION) "$$example" "$${flags[@]}" --include-full-xr --quiet | \
 			crossplane resource validate $(XRD_DIR) --error-on-missing-schemas -; \
 	done
+	@$(MAKE) check-errors
 
 # Shorthand aliases
 .PHONY: render validate generate-configuration
@@ -68,6 +69,9 @@ validate\:%: generate-configuration
 
 test:
 	@if [ -z "$(RENDER_TESTS)" ]; then echo "No render tests found (tests/test-*). Skipping."; else up test run $(RENDER_TESTS); fi
+
+check-errors:
+	python3 scripts/check-render-errors.py
 
 e2e:
 	up test run $(E2E_TESTS) --e2e

@@ -172,7 +172,8 @@ with tempfile.TemporaryDirectory(prefix="webservice-smoke-") as tmp:
         queue_probe = forward(blocked_pod["name"], 8012, "websvc-67", "pod")
         wait(lambda: request(proxy_probe, "localhost", path="/ready")[0] == 200, "login proxy itself is healthy")
         assert request(app_probe, "localhost")[0] == 200
-        assert request(queue_probe, "localhost", extra_headers={"K-Network-Probe": "queue"})[0] == 503
+        queue_status = request(queue_probe, "localhost", extra_headers={"K-Network-Probe": "queue", "User-Agent": "kube-probe/webservice-smoke"})[0]
+        assert queue_status == 503, "aggregate readiness status: " + str(queue_status)
         print("PASS aggregate readiness rejects failing application probe", flush=True)
         patch_probe(5678)
         def app_recovered():

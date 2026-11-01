@@ -71,7 +71,7 @@ items = [metav1alpha1.E2ETest {
         ]
       },
       {
-        "apiVersion": "kubernetes.m.crossplane.io/v1beta1",
+        "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
         "kind": "ClusterProviderConfig",
         "metadata": {
           "name": "default"

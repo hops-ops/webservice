@@ -57,7 +57,7 @@ render\:%:
 	up composition render --xrd=$(DEFINITION) $(COMPOSITION) $$example --extra-resources=examples/platform.yaml
 
 validate\:%: generate-configuration
-	@example="examples/webservices/$*.yaml"; \
+	@set -euo pipefail; example="examples/webservices/$*.yaml"; \
 	up composition render --xrd=$(DEFINITION) $(COMPOSITION) $$example --extra-resources=examples/platform.yaml \
 		--include-full-xr --quiet | \
 		crossplane resource validate $(XRD_DIR) --error-on-missing-schemas -

@@ -50,8 +50,11 @@ jobs:
     uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@v2.20.0
     with:
       aws: false
-      timeout-minutes: 35
-      debug-resource-types: '["webservices.workloads.hops.ops.com.ai","knativestacks.hops.ops.com.ai","istiostacks.hops.ops.com.ai"]'
+      timeout-minutes: 20
+      debug-resource-types: '["webservices.workloads.hops.ops.com.ai","knativestacks.hops.ops.com.ai","istiostacks.hops.ops.com.ai","gatewayapistacks.hops.ops.com.ai"]'
+      cleanup-timeout-minutes: 10
+      delete-extra-resources-timeout-minutes: 15
+      delete-extra-resources: '["knativestacks.hops.ops.com.ai","istiostacks.hops.ops.com.ai","gatewayapistacks.hops.ops.com.ai"]'
   publish:
     needs:
     - validate

@@ -1,5 +1,7 @@
 import models.io.upbound.dev.meta.v1alpha1 as metav1alpha1
 
+# Shared fixture XRs are deleted explicitly by the reusable workflow after
+# WebService teardown; keep Serving and its CRDs available to the workload.
 items = [metav1alpha1.E2ETest {
   "metadata": {
     "name": "webservice-cluster-lifecycle"
@@ -13,8 +15,8 @@ items = [metav1alpha1.E2ETest {
     "defaultConditions": [
       "Ready"
     ],
-    "timeoutSeconds": 1800,
-    "cleanupTimeoutSeconds": 1200,
+    "timeoutSeconds": 900,
+    "cleanupTimeoutSeconds": 600,
     "skipDelete": False,
     "initResources": [
       {
@@ -49,8 +51,27 @@ items = [metav1alpha1.E2ETest {
       }
     ],
     "extraResources": [
-      {"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": "istio-system"}},
-      {"apiVersion": "v1", "kind": "ConfigMap", "metadata": {"name": "webservice-e2e-gateway-defaults", "namespace": "istio-system", "labels": {"gateway.istio.io/defaults-for-class": "istio"}}, "data": {"service": "spec:\n  type: ClusterIP\n"}},
+      {
+        "apiVersion": "v1",
+        "kind": "Namespace",
+        "metadata": {
+          "name": "istio-system"
+        }
+      },
+      {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+          "name": "webservice-e2e-gateway-defaults",
+          "namespace": "istio-system",
+          "labels": {
+            "gateway.istio.io/defaults-for-class": "istio"
+          }
+        },
+        "data": {
+          "service": "spec:\n  type: ClusterIP\n"
+        }
+      },
       {
         "apiVersion": "rbac.authorization.k8s.io/v1",
         "kind": "ClusterRoleBinding",
@@ -106,9 +127,7 @@ items = [metav1alpha1.E2ETest {
             "kind": "ClusterProviderConfig"
           }
         }
-      }
-    ],
-    "manifests": [
+      },
       {
         "apiVersion": "hops.ops.com.ai/v1alpha1",
         "kind": "GatewayAPIStack",
@@ -118,7 +137,10 @@ items = [metav1alpha1.E2ETest {
         },
         "spec": {
           "clusterName": "default",
-          "helmProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"}
+          "helmProviderConfigRef": {
+            "name": "default",
+            "kind": "ClusterProviderConfig"
+          }
         }
       },
       {
@@ -130,8 +152,29 @@ items = [metav1alpha1.E2ETest {
         },
         "spec": {
           "clusterName": "default",
-          "kubernetesProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"},
-          "helmProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"}
+          "kubernetesProviderConfigRef": {
+            "name": "default",
+            "kind": "ClusterProviderConfig"
+          },
+          "helmProviderConfigRef": {
+            "name": "default",
+            "kind": "ClusterProviderConfig"
+          },
+          "ingressGateway": {
+            "enabled": True,
+            "listeners": [
+              {
+                "name": "http",
+                "port": 80,
+                "protocol": "HTTP",
+                "allowedRoutes": {
+                  "namespaces": {
+                    "from": "All"
+                  }
+                }
+              }
+            ]
+          }
         }
       },
       {
@@ -143,8 +186,14 @@ items = [metav1alpha1.E2ETest {
         },
         "spec": {
           "clusterName": "default",
-          "helmProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"},
-          "kubernetesProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"},
+          "helmProviderConfigRef": {
+            "name": "default",
+            "kind": "ClusterProviderConfig"
+          },
+          "kubernetesProviderConfigRef": {
+            "name": "default",
+            "kind": "ClusterProviderConfig"
+          },
           "nats": {
             "enabled": False
           },
@@ -157,11 +206,14 @@ items = [metav1alpha1.E2ETest {
                 "features": {
                   "kubernetes.podspec-securitycontext": "enabled"
                 }
-              }
+              },
+              "version": "1.21.0"
             }
           }
         }
-      },
+      }
+    ],
+    "manifests": [
       {
         "apiVersion": "workloads.hops.ops.com.ai/v1alpha1",
         "kind": "WebService",

@@ -49,6 +49,8 @@ items = [metav1alpha1.E2ETest {
       }
     ],
     "extraResources": [
+      {"apiVersion": "v1", "kind": "Namespace", "metadata": {"name": "istio-system"}},
+      {"apiVersion": "v1", "kind": "ConfigMap", "metadata": {"name": "webservice-e2e-gateway-defaults", "namespace": "istio-system", "labels": {"gateway.istio.io/defaults-for-class": "istio"}}, "data": {"service": "spec:\n  type: ClusterIP\n"}},
       {
         "apiVersion": "rbac.authorization.k8s.io/v1",
         "kind": "ClusterRoleBinding",

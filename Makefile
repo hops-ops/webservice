@@ -28,7 +28,9 @@ EXAMPLES := examples/webservices/minimal.yaml:: \
     examples/webservices/cluster.yaml:: \
     examples/webservices/authenticated.yaml:: \
     examples/webservices/configured.yaml:: \
-    examples/webservices/import.yaml::
+    examples/webservices/import.yaml:: \
+    examples/webservices/minimal.yaml::examples/test/mocks/observed-resources/ready/ \
+    examples/webservices/authenticated.yaml::examples/test/mocks/observed-resources/ready/
 
 # up writes generated models into one shared .up directory; serialize examples.
 render\:all:

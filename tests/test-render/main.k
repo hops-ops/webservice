@@ -415,11 +415,10 @@ metav1alpha1.CompositionTest {
         "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
         "kind": "Object",
         "metadata": {
-          "name": "echo-route",
+          "name": "echo-service",
           "namespace": "preview-67",
           "annotations": {
-            "crossplane.io/composition-resource-name": "route",
-            "gotemplating.fn.crossplane.io/composition-resource-name": "route"
+            "crossplane.io/composition-resource-name": "service"
           }
         },
         "status": {
@@ -431,11 +430,46 @@ metav1alpha1.CompositionTest {
           ],
           "atProvider": {
             "manifest": {
-              "apiVersion": "v1",
-              "kind": "ConfigMap",
+              "apiVersion": "serving.knative.dev/v1",
+              "kind": "Service",
               "metadata": {
-                "name": "fixture",
-                "uid": "test-uid"
+                "name": "echo",
+                "namespace": "preview-67",
+                "uid": "fixture-service"
+              },
+              "status": {
+                "url": "http://echo.preview-67.svc.cluster.local",
+                "latestReadyRevisionName": "echo-00001"
+              }
+            }
+          }
+        }
+      },
+      {
+        "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+        "kind": "Object",
+        "metadata": {
+          "name": "echo-route",
+          "namespace": "preview-67",
+          "annotations": {
+            "crossplane.io/composition-resource-name": "route"
+          }
+        },
+        "status": {
+          "conditions": [
+            {
+              "type": "Ready",
+              "status": "True"
+            }
+          ],
+          "atProvider": {
+            "manifest": {
+              "apiVersion": "gateway.networking.k8s.io/v1",
+              "kind": "HTTPRoute",
+              "metadata": {
+                "name": "echo-private",
+                "namespace": "preview-67",
+                "uid": "fixture-route"
               },
               "spec": {
                 "hostnames": [
@@ -453,8 +487,7 @@ metav1alpha1.CompositionTest {
           "name": "echo-gateway",
           "namespace": "preview-67",
           "annotations": {
-            "crossplane.io/composition-resource-name": "gateway",
-            "gotemplating.fn.crossplane.io/composition-resource-name": "gateway"
+            "crossplane.io/composition-resource-name": "gateway"
           }
         },
         "status": {
@@ -466,51 +499,12 @@ metav1alpha1.CompositionTest {
           ],
           "atProvider": {
             "manifest": {
-              "apiVersion": "v1",
-              "kind": "ConfigMap",
+              "apiVersion": "gateway.networking.k8s.io/v1",
+              "kind": "Gateway",
               "metadata": {
-                "name": "fixture",
-                "uid": "test-uid"
-              },
-              "spec": {
-                "hostnames": [
-                  "echo.preview-67.example.com"
-                ]
-              }
-            }
-          }
-        }
-      },
-      {
-        "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
-        "kind": "Object",
-        "metadata": {
-          "name": "echo-service",
-          "namespace": "preview-67",
-          "annotations": {
-            "crossplane.io/composition-resource-name": "service",
-            "gotemplating.fn.crossplane.io/composition-resource-name": "service"
-          }
-        },
-        "status": {
-          "conditions": [
-            {
-              "type": "Ready",
-              "status": "True"
-            }
-          ],
-          "atProvider": {
-            "manifest": {
-              "apiVersion": "v1",
-              "kind": "ConfigMap",
-              "metadata": {
-                "name": "fixture",
-                "uid": "test-uid"
-              },
-              "spec": {
-                "hostnames": [
-                  "echo.preview-67.example.com"
-                ]
+                "name": "echo-preview-67",
+                "namespace": "preview-67",
+                "uid": "fixture-gateway"
               }
             }
           }
@@ -523,8 +517,7 @@ metav1alpha1.CompositionTest {
           "name": "echo-backend-grant",
           "namespace": "preview-67",
           "annotations": {
-            "crossplane.io/composition-resource-name": "backend-grant",
-            "gotemplating.fn.crossplane.io/composition-resource-name": "backend-grant"
+            "crossplane.io/composition-resource-name": "backend-grant"
           }
         },
         "status": {
@@ -536,16 +529,12 @@ metav1alpha1.CompositionTest {
           ],
           "atProvider": {
             "manifest": {
-              "apiVersion": "v1",
-              "kind": "ConfigMap",
+              "apiVersion": "gateway.networking.k8s.io/v1beta1",
+              "kind": "ReferenceGrant",
               "metadata": {
-                "name": "fixture",
-                "uid": "test-uid"
-              },
-              "spec": {
-                "hostnames": [
-                  "echo.preview-67.example.com"
-                ]
+                "name": "echo-preview-67",
+                "namespace": "preview-67",
+                "uid": "fixture-backend-grant"
               }
             }
           }
@@ -558,8 +547,7 @@ metav1alpha1.CompositionTest {
           "name": "echo-certificate",
           "namespace": "preview-67",
           "annotations": {
-            "crossplane.io/composition-resource-name": "certificate",
-            "gotemplating.fn.crossplane.io/composition-resource-name": "certificate"
+            "crossplane.io/composition-resource-name": "certificate"
           }
         },
         "status": {
@@ -571,16 +559,12 @@ metav1alpha1.CompositionTest {
           ],
           "atProvider": {
             "manifest": {
-              "apiVersion": "v1",
-              "kind": "ConfigMap",
+              "apiVersion": "networking.internal.knative.dev/v1alpha1",
+              "kind": "Certificate",
               "metadata": {
-                "name": "fixture",
-                "uid": "test-uid"
-              },
-              "spec": {
-                "hostnames": [
-                  "echo.preview-67.example.com"
-                ]
+                "name": "echo-tls",
+                "namespace": "preview-67",
+                "uid": "fixture-certificate"
               }
             }
           }
@@ -593,8 +577,37 @@ metav1alpha1.CompositionTest {
           "name": "echo-tls-grant",
           "namespace": "preview-67",
           "annotations": {
-            "crossplane.io/composition-resource-name": "tls-grant",
-            "gotemplating.fn.crossplane.io/composition-resource-name": "tls-grant"
+            "crossplane.io/composition-resource-name": "tls-grant"
+          }
+        },
+        "status": {
+          "conditions": [
+            {
+              "type": "Ready",
+              "status": "True"
+            }
+          ],
+          "atProvider": {
+            "manifest": {
+              "apiVersion": "gateway.networking.k8s.io/v1beta1",
+              "kind": "ReferenceGrant",
+              "metadata": {
+                "name": "echo-tls",
+                "namespace": "preview-67",
+                "uid": "fixture-tls-grant"
+              }
+            }
+          }
+        }
+      },
+      {
+        "apiVersion": "kubernetes.m.crossplane.io/v1alpha1",
+        "kind": "Object",
+        "metadata": {
+          "name": "echo-tls-secret",
+          "namespace": "preview-67",
+          "annotations": {
+            "crossplane.io/composition-resource-name": "tls-secret"
           }
         },
         "status": {
@@ -607,15 +620,11 @@ metav1alpha1.CompositionTest {
           "atProvider": {
             "manifest": {
               "apiVersion": "v1",
-              "kind": "ConfigMap",
+              "kind": "Secret",
               "metadata": {
-                "name": "fixture",
-                "uid": "test-uid"
-              },
-              "spec": {
-                "hostnames": [
-                  "echo.preview-67.example.com"
-                ]
+                "name": "echo-tls",
+                "namespace": "preview-67",
+                "uid": "fixture-tls-secret"
               }
             }
           }

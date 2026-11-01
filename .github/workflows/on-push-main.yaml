@@ -3,6 +3,9 @@ name: on-push-main
   push:
     branches:
     - main
+concurrency:
+  group: webservice-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write
   packages: write

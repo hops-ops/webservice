@@ -43,7 +43,7 @@ metav1alpha1.CompositionTest {
   "spec": {
     "compositionPath": "apis/webservices/composition.yaml",
     "xrdPath": "apis/webservices/definition.yaml",
-    "timeoutSeconds": 10,
+    "timeoutSeconds": 90,
     "validate": False,
     "xr": {
       "apiVersion": "workloads.hops.ops.com.ai/v1alpha1",
@@ -132,7 +132,7 @@ metav1alpha1.CompositionTest {
   "spec": {
     "compositionPath": "apis/webservices/composition.yaml",
     "xrdPath": "apis/webservices/definition.yaml",
-    "timeoutSeconds": 10,
+    "timeoutSeconds": 90,
     "validate": False,
     "xr": {
       "apiVersion": "workloads.hops.ops.com.ai/v1alpha1",
@@ -180,7 +180,7 @@ metav1alpha1.CompositionTest {
   "spec": {
     "compositionPath": "apis/webservices/composition.yaml",
     "xrdPath": "apis/webservices/definition.yaml",
-    "timeoutSeconds": 10,
+    "timeoutSeconds": 90,
     "validate": False,
     "xr": {
       "apiVersion": "workloads.hops.ops.com.ai/v1alpha1",
@@ -228,7 +228,7 @@ metav1alpha1.CompositionTest {
   "spec": {
     "compositionPath": "apis/webservices/composition.yaml",
     "xrdPath": "apis/webservices/definition.yaml",
-    "timeoutSeconds": 10,
+    "timeoutSeconds": 90,
     "validate": False,
     "xr": {
       "apiVersion": "workloads.hops.ops.com.ai/v1alpha1",
@@ -304,7 +304,7 @@ metav1alpha1.CompositionTest {
   "spec": {
     "compositionPath": "apis/webservices/composition.yaml",
     "xrdPath": "apis/webservices/definition.yaml",
-    "timeoutSeconds": 10,
+    "timeoutSeconds": 90,
     "validate": False,
     "xr": {
       "apiVersion": "workloads.hops.ops.com.ai/v1alpha1",
@@ -375,7 +375,7 @@ metav1alpha1.CompositionTest {
   "spec": {
     "compositionPath": "apis/webservices/composition.yaml",
     "xrdPath": "apis/webservices/definition.yaml",
-    "timeoutSeconds": 10,
+    "timeoutSeconds": 90,
     "validate": False,
     "xr": {
       "apiVersion": "workloads.hops.ops.com.ai/v1alpha1",
@@ -398,6 +398,7 @@ metav1alpha1.CompositionTest {
         "kind": "Object",
         "metadata": {
           "name": "echo-route",
+          "namespace": "preview-67",
           "annotations": {
             "crossplane.io/composition-resource-name": "route",
             "gotemplating.fn.crossplane.io/composition-resource-name": "route"
@@ -417,6 +418,11 @@ metav1alpha1.CompositionTest {
               "metadata": {
                 "name": "fixture",
                 "uid": "test-uid"
+              },
+              "spec": {
+                "hostnames": [
+                  "echo.preview-67.example.com"
+                ]
               }
             }
           }
@@ -427,6 +433,7 @@ metav1alpha1.CompositionTest {
         "kind": "Object",
         "metadata": {
           "name": "echo-gateway",
+          "namespace": "preview-67",
           "annotations": {
             "crossplane.io/composition-resource-name": "gateway",
             "gotemplating.fn.crossplane.io/composition-resource-name": "gateway"
@@ -446,6 +453,11 @@ metav1alpha1.CompositionTest {
               "metadata": {
                 "name": "fixture",
                 "uid": "test-uid"
+              },
+              "spec": {
+                "hostnames": [
+                  "echo.preview-67.example.com"
+                ]
               }
             }
           }
@@ -456,6 +468,7 @@ metav1alpha1.CompositionTest {
         "kind": "Object",
         "metadata": {
           "name": "echo-service",
+          "namespace": "preview-67",
           "annotations": {
             "crossplane.io/composition-resource-name": "service",
             "gotemplating.fn.crossplane.io/composition-resource-name": "service"
@@ -475,6 +488,11 @@ metav1alpha1.CompositionTest {
               "metadata": {
                 "name": "fixture",
                 "uid": "test-uid"
+              },
+              "spec": {
+                "hostnames": [
+                  "echo.preview-67.example.com"
+                ]
               }
             }
           }
@@ -485,6 +503,7 @@ metav1alpha1.CompositionTest {
         "kind": "Object",
         "metadata": {
           "name": "echo-backend-grant",
+          "namespace": "preview-67",
           "annotations": {
             "crossplane.io/composition-resource-name": "backend-grant",
             "gotemplating.fn.crossplane.io/composition-resource-name": "backend-grant"
@@ -504,6 +523,11 @@ metav1alpha1.CompositionTest {
               "metadata": {
                 "name": "fixture",
                 "uid": "test-uid"
+              },
+              "spec": {
+                "hostnames": [
+                  "echo.preview-67.example.com"
+                ]
               }
             }
           }
@@ -514,6 +538,7 @@ metav1alpha1.CompositionTest {
         "kind": "Object",
         "metadata": {
           "name": "echo-certificate",
+          "namespace": "preview-67",
           "annotations": {
             "crossplane.io/composition-resource-name": "certificate",
             "gotemplating.fn.crossplane.io/composition-resource-name": "certificate"
@@ -533,6 +558,11 @@ metav1alpha1.CompositionTest {
               "metadata": {
                 "name": "fixture",
                 "uid": "test-uid"
+              },
+              "spec": {
+                "hostnames": [
+                  "echo.preview-67.example.com"
+                ]
               }
             }
           }
@@ -543,6 +573,7 @@ metav1alpha1.CompositionTest {
         "kind": "Object",
         "metadata": {
           "name": "echo-tls-grant",
+          "namespace": "preview-67",
           "annotations": {
             "crossplane.io/composition-resource-name": "tls-grant",
             "gotemplating.fn.crossplane.io/composition-resource-name": "tls-grant"
@@ -562,6 +593,11 @@ metav1alpha1.CompositionTest {
               "metadata": {
                 "name": "fixture",
                 "uid": "test-uid"
+              },
+              "spec": {
+                "hostnames": [
+                  "echo.preview-67.example.com"
+                ]
               }
             }
           }

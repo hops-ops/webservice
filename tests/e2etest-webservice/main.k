@@ -115,7 +115,8 @@ items = [metav1alpha1.E2ETest {
           "namespace": "default"
         },
         "spec": {
-          "clusterName": "default"
+          "clusterName": "default",
+          "helmProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"}
         }
       },
       {
@@ -126,7 +127,9 @@ items = [metav1alpha1.E2ETest {
           "namespace": "default"
         },
         "spec": {
-          "clusterName": "default"
+          "clusterName": "default",
+          "kubernetesProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"},
+          "helmProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"}
         }
       },
       {
@@ -138,6 +141,8 @@ items = [metav1alpha1.E2ETest {
         },
         "spec": {
           "clusterName": "default",
+          "helmProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"},
+          "kubernetesProviderConfigRef": {"name": "default", "kind": "ClusterProviderConfig"},
           "nats": {
             "enabled": False
           },

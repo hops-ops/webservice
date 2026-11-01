@@ -71,3 +71,6 @@ e2e:
 publish:
 	@if [ -z "$(tag)" ]; then echo "Error: tag is not set. Usage: make publish tag=<version>"; exit 1; fi
 	up project build --push --tag $(tag)
+
+smoke-local:
+	uv run scripts/local-smoke.py --context kind-hops

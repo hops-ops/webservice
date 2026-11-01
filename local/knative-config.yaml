@@ -25,3 +25,24 @@ metadata:
   namespace: knative-serving
 data:
   kubernetes.podspec-securitycontext: enabled
+  kubernetes.podspec-hostaliases: enabled
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-network
+  namespace: knative-serving
+data:
+  ingress-class: gateway-api.ingress.networking.knative.dev
+  external-domain-tls: Enabled
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-certmanager
+  namespace: knative-serving
+data:
+  issuerRef: |
+    kind: ClusterIssuer
+    name: webservice-local-ca

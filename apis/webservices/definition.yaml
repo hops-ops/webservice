@@ -179,9 +179,6 @@ spec:
               latestReadyRevision:
                 type: string
                 description: Latest ready Knative revision name.
-              oidcClientId:
-                type: string
-                description: Observed public OAuth client identifier; never a credential.
           metadata:
             type: object
             properties:

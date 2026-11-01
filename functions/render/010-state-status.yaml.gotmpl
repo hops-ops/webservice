@@ -20,5 +20,5 @@
 {{- end }}
 {{- $ready := true }}
 {{- range $keys }}{{- $ready = and $ready ((get $obs . | default dict).ready | default false) }}{{- end }}
-{{- $_ := set $state "status" (dict "ready" $ready "url" $url "serviceUrl" (dig "status" "url" "" $ks) "latestReadyRevision" (dig "status" "latestReadyRevisionName" "" $ks) "oidcClientId" (dig "resource" "status" "atProvider" "clientId" "" (get $obs "oidc" | default dict))) }}
+{{- $_ := set $state "status" (dict "ready" $ready "url" $url "serviceUrl" (dig "status" "url" "" $ks) "latestReadyRevision" (dig "status" "latestReadyRevisionName" "" $ks)) }}
 {{- end }}

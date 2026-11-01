@@ -67,7 +67,7 @@ Every WebService owns a provider-kubernetes Object for its Knative Service. Priv
 
 With auth enabled it also owns a Zitadel Oidc, a target credential Secret bridge, Password generator, CreatedOnce ExternalSecret, optional issuer CA ConfigMap, and an oauth2-proxy sidecar. Credentials are copied from the control-plane connection Secret through provider-kubernetes references, without exposing them in XR status.
 
-Read `status.serviceUrl` for the observed Knative endpoint, `status.url` for the consumer URL, `status.latestReadyRevision` for rollout state, and `status.ready` / the standard Ready condition for reconciliation. `status.oidcClientId` is a public identifier when reported by the provider. Status never contains credentials.
+Read `status.serviceUrl` for the observed Knative endpoint, `status.url` for the consumer URL, `status.latestReadyRevision` for rollout state, and `status.ready` / the standard Ready condition for reconciliation. Status never contains credentials.
 
 Usages order route/gateway/certificate and workload/credential deletion. The private TLS Secret is observed for explicit teardown without writing certificate data. Native public TLS Secret cleanup follows the platform's cert-manager owner-reference policy. ExternalDNS must use a deletion policy appropriate to the environment: `upsert-only` retains records after a route is gone and requires separate DNS cleanup. This package does not silently change that shared controller policy.
 

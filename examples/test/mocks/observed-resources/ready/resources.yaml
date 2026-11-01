@@ -1,0 +1,218 @@
+# Ready-state fixture: no credentials or copied provider connection data.
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-service
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: service
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      metadata:
+        name: echo
+        namespace: preview-67
+        uid: fixture-service
+      status:
+        url: http://echo.preview-67.svc.cluster.local
+        latestReadyRevisionName: echo-00001
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-route
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: route
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: HTTPRoute
+      metadata:
+        name: echo-private
+        namespace: preview-67
+        uid: fixture-route
+      spec:
+        hostnames:
+        - echo.preview-67.example.com
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-gateway
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: gateway
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: Gateway
+      metadata:
+        name: echo-preview-67
+        namespace: preview-67
+        uid: fixture-gateway
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-backend-grant
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: backend-grant
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: gateway.networking.k8s.io/v1beta1
+      kind: ReferenceGrant
+      metadata:
+        name: echo-preview-67
+        namespace: preview-67
+        uid: fixture-backend-grant
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-certificate
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: certificate
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: networking.internal.knative.dev/v1alpha1
+      kind: Certificate
+      metadata:
+        name: echo-tls
+        namespace: preview-67
+        uid: fixture-certificate
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-tls-grant
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: tls-grant
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: gateway.networking.k8s.io/v1beta1
+      kind: ReferenceGrant
+      metadata:
+        name: echo-tls
+        namespace: preview-67
+        uid: fixture-tls-grant
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-tls-secret
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: tls-secret
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: echo-tls
+        namespace: preview-67
+        uid: fixture-tls-secret
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-client-secret
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: client-secret
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: echo-login
+        namespace: preview-67
+        uid: fixture-client-secret
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-cookie
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: cookie
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      metadata:
+        name: echo-cookie
+        namespace: preview-67
+        uid: fixture-cookie
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: echo-cookie-generator
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: cookie-generator
+status:
+  conditions:
+  - type: Ready
+    status: 'True'
+  atProvider:
+    manifest:
+      apiVersion: generators.external-secrets.io/v1alpha1
+      kind: Password
+      metadata:
+        name: echo-cookie
+        namespace: preview-67
+        uid: fixture-cookie-generator
+---
+apiVersion: application.zitadel.m.crossplane.io/v1alpha1
+kind: Oidc
+metadata:
+  name: echo-oidc
+  namespace: preview-67
+  annotations:
+    crossplane.io/composition-resource-name: oidc
+status:
+  conditions:
+  - type: Ready
+    status: 'True'

@@ -1,0 +1,16 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: webservices.workloads.hops.ops.com.ai
+spec:
+  compositeTypeRef:
+    apiVersion: workloads.hops.ops.com.ai/v1alpha1
+    kind: WebService
+  mode: Pipeline
+  pipeline:
+  - step: render
+    functionRef:
+      name: hops-ops-webservicerender
+  - step: ready
+    functionRef:
+      name: crossplane-contrib-function-auto-ready

@@ -1,0 +1,32 @@
+apiVersion: workloads.hops.ops.com.ai/v1alpha1
+kind: WebService
+metadata:
+  name: echo
+  namespace: preview-67
+spec:
+  image: hashicorp/http-echo:1.0.0
+  port: 5678
+  exposure: cluster
+  env:
+  - name: LOG_LEVEL
+    value: info
+  - name: API_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: service-credentials
+        key: api-key
+  scaling:
+    minReplicas: 1
+    maxReplicas: 5
+    concurrency: 20
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+  probes:
+    readiness:
+      httpGet:
+        path: /
+        port: 5678

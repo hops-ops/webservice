@@ -1,0 +1,188 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: webservices.workloads.hops.ops.com.ai
+spec:
+  group: workloads.hops.ops.com.ai
+  names:
+    kind: WebService
+    plural: webservices
+    shortNames:
+    - websvc
+  scope: Namespaced
+  defaultCompositionRef:
+    name: webservices.workloads.hops.ops.com.ai
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required:
+            - image
+            properties:
+              image:
+                type: string
+                description: Container image, preferably pinned by digest.
+                minLength: 1
+              port:
+                type: integer
+                default: 8080
+                minimum: 1
+                maximum: 65535
+              exposure:
+                type: string
+                description: 'cluster: service endpoint only; private: VPN/VPC gateway;
+                  public: internet gateway.'
+                enum:
+                - cluster
+                - private
+                - public
+                default: private
+              platformRef:
+                type: object
+                default:
+                  name: default
+                properties:
+                  name:
+                    type: string
+                    description: Selects operator-owned EnvironmentConfig webservice-<name>.
+                    default: default
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                    maxLength: 40
+              auth:
+                type: object
+                default:
+                  enabled: false
+                properties:
+                  enabled:
+                    type: boolean
+                    default: false
+                  allowedGroups:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: string
+                      description: ''
+                      minLength: 1
+                  externalName:
+                    type: string
+                    description: Adopt an existing Zitadel application using its provider
+                      external name.
+              env:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - name
+                  properties:
+                    name:
+                      type: string
+                  x-kubernetes-preserve-unknown-fields: true
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-validations:
+                - rule: self.all(e, e.name != "PORT")
+                  message: PORT is provided by the serving runtime; set spec.port
+                    instead
+              resources: &id001
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              command:
+                type: array
+                items:
+                  type: string
+                  description: ''
+              args:
+                type: array
+                items:
+                  type: string
+                  description: ''
+              probes:
+                type: object
+                properties:
+                  readiness: *id001
+                  liveness: *id001
+                  startup: *id001
+              scaling:
+                type: object
+                default:
+                  minReplicas: 0
+                properties:
+                  minReplicas:
+                    type: integer
+                    minimum: 0
+                    default: 0
+                  maxReplicas:
+                    type: integer
+                    minimum: 1
+                  concurrency:
+                    type: integer
+                    minimum: 0
+                    maximum: 1000
+                x-kubernetes-validations:
+                - rule: '!has(self.maxReplicas) || self.maxReplicas >= self.minReplicas'
+                  message: maxReplicas must be at least minReplicas
+              requestTimeoutSeconds:
+                type: integer
+                minimum: 1
+                maximum: 600
+                default: 300
+              podTemplate:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+                description: 'Additional Knative revision spec: volumes, serviceAccountName,
+                  scheduling and security settings. Reserved app container/port/auth
+                  fields cannot be replaced.'
+              labels: &id002
+                type: object
+                additionalProperties:
+                  type: string
+                x-kubernetes-preserve-unknown-fields: true
+              tags: *id002
+              managementPolicies:
+                type: array
+                default:
+                - '*'
+                minItems: 1
+                items:
+                  type: string
+                  description: ''
+                  enum:
+                  - '*'
+                  - Observe
+                  - Create
+                  - Update
+                  - LateInitialize
+                  - Delete
+            x-kubernetes-validations:
+            - rule: '!has(self.auth) || !self.auth.enabled || self.exposure != "cluster"'
+              message: browser authentication requires a private or public HTTPS endpoint
+          status:
+            type: object
+            properties:
+              ready:
+                type: boolean
+              url:
+                type: string
+                description: Observed service URL for cluster/public, or admitted
+                  external private route hostname.
+              serviceUrl:
+                type: string
+                description: Observed Knative service endpoint, useful to in-cluster
+                  callers.
+              latestReadyRevision:
+                type: string
+                description: Latest ready Knative revision name.
+          metadata:
+            type: object
+            properties:
+              name:
+                type: string
+                maxLength: 63
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$

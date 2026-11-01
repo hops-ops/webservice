@@ -1,0 +1,12 @@
+apiVersion: project.zitadel.m.crossplane.io/v1alpha1
+kind: Project
+metadata:
+  name: webservice-local-test
+  namespace: websvc-67
+spec:
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig
+  forProvider:
+    name: WebService local integration test
+    projectRoleAssertion: true

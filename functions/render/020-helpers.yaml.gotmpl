@@ -1,0 +1,49 @@
+{{- define "webservice.object" }}
+---
+apiVersion: kubernetes.m.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: {{ .state.service.name }}-{{ .key }}
+  annotations:
+    {{ setResourceNameAnnotation .key }}
+  labels: {{ .state.service.labels | toJson }}
+spec:
+  managementPolicies: {{ .managementPolicies | default .state.spec.effective.managementPolicies | toJson }}
+  providerConfigRef: {{ .state.service.provider | toJson }}
+  readiness:
+    policy: {{ .policy | default "SuccessfulCreate" }}
+    {{- with .query }}
+    celQuery: {{ . | quote }}
+    {{- end }}
+  {{- with .references }}
+  references: {{ . | toJson }}
+  {{- end }}
+  forProvider:
+    manifest: {{ .manifest | toJson }}
+{{- end }}
+{{- define "webservice.usage" }}
+{{- $of := get .state.observed .of | default dict }}
+{{- $by := get .state.observed .by | default dict }}
+{{- if and $of.ready $by.ready }}
+---
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  name: {{ .state.service.name }}-delete-{{ .by }}-before-{{ .of }}
+  annotations:
+    {{ setResourceNameAnnotation (printf "usage-%s-%s" .by .of) }}
+  labels: {{ .state.service.labels | toJson }}
+spec:
+  replayDeletion: true
+  of:
+    apiVersion: {{ .ofApi | default "kubernetes.m.crossplane.io/v1alpha1" }}
+    kind: {{ .ofKind | default "Object" }}
+    resourceRef:
+      name: {{ .state.service.name }}-{{ .of }}
+  by:
+    apiVersion: kubernetes.m.crossplane.io/v1alpha1
+    kind: Object
+    resourceRef:
+      name: {{ .state.service.name }}-{{ .by }}
+{{- end }}
+{{- end }}

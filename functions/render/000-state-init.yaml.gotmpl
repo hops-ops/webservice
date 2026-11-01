@@ -1,0 +1,42 @@
+{{- $xr := getCompositeResource . }}
+{{- $spec := $xr.spec }}
+{{- $name := $xr.metadata.name }}
+{{- $namespace := $xr.metadata.namespace }}
+{{- $platformName := printf "webservice-%s" (($spec.platformRef | default dict).name | default "default") }}
+---
+apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+kind: ExtraResources
+requirements:
+  platform:
+    apiVersion: apiextensions.crossplane.io/v1beta1
+    kind: EnvironmentConfig
+    matchName: {{ $platformName }}
+{{- $extra := (get (.extraResources | default dict) "platform" | default dict).items | default list }}
+{{- $platform := dict }}
+{{- range $extra }}
+  {{- $platform = .resource.data }}
+{{- end }}
+{{- if and (hasKey (.extraResources | default dict) "platform") (eq (len $extra) 0) }}
+  {{- fail (printf "operator platform configuration %s is missing" $platformName) }}
+{{- end }}
+{{- if and (gt (len $extra) 0) (empty $platform) }}
+  {{- fail (printf "operator platform configuration %s data is required" $platformName) }}
+{{- end }}
+{{- $defaults := dict "hops.ops.com.ai/managed" "true" "hops.ops.com.ai/webservice" $name }}
+{{- $eff := deepCopy $spec }}
+{{- $_ := set $eff "exposure" ($spec.exposure | default "private") }}
+{{- $_ := set $eff "port" ($spec.port | default 8080) }}
+{{- $_ := set $eff "auth" (mergeOverwrite (dict "enabled" false) ($spec.auth | default dict)) }}
+{{- $_ := set $eff "scaling" (mergeOverwrite (dict "minReplicas" 0) ($spec.scaling | default dict)) }}
+{{- $_ := set $eff "labels" (mergeOverwrite (deepCopy $defaults) ($spec.labels | default dict)) }}
+{{- $_ := set $eff "tags" (mergeOverwrite (deepCopy $defaults) ($spec.tags | default dict)) }}
+{{- $_ := set $eff "managementPolicies" ($spec.managementPolicies | default (list "*")) }}
+{{- $state := dict "spec" (dict "raw" $spec "effective" $eff) "platform" $platform "observed" (dict) "service" (dict) "status" (dict) }}
+{{- range $key, $entry := (.observed.resources | default dict) }}
+  {{- $res := $entry.resource | default dict }}
+  {{- $ready := false }}
+  {{- range (($res.status | default dict).conditions | default list) }}
+    {{- if and (eq .type "Ready") (eq .status "True") }}{{- $ready = true }}{{- end }}
+  {{- end }}
+  {{- $_ := set $state.observed $key (dict "ready" $ready "resource" $res "manifest" (dig "status" "atProvider" "manifest" dict $res)) }}
+{{- end }}

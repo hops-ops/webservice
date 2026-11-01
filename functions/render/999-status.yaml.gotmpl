@@ -1,0 +1,6 @@
+{{- if $state.platform }}
+---
+apiVersion: {{ $xr.apiVersion }}
+kind: {{ $xr.kind }}
+status: {{ $state.status | toJson }}
+{{- end }}

@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 25
     steps:
     - uses: actions/checkout@v6
-    - uses: upbound/action-up@v1.0.0
+    - uses: upbound/action-up@v1.2.0
       with:
         skip-login: true
     - name: Install Crossplane CLI

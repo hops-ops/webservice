@@ -73,6 +73,8 @@ Read `status.serviceUrl` for the observed Knative endpoint, `status.url` for the
 
 Usages order route/gateway/certificate and workload/credential deletion. The private TLS Secret is observed for explicit teardown without writing certificate data. Native public TLS Secret cleanup follows the platform's cert-manager owner-reference policy. ExternalDNS must use a deletion policy appropriate to the environment: `upsert-only` retains records after a route is gone and requires separate DNS cleanup. This package does not silently change that shared controller policy.
 
+See [lifecycle and reconciliation](docs/lifecycle.md) for the deletion dependency graph, readiness behavior and watch-event diagnosis.
+
 ## Development
 
 Read `AGENTS.md` and the Hops `xrd-authoring` skill. Package layout follows the Hops XRD convention.

@@ -50,6 +50,7 @@ validate\:all: generate-configuration
 			crossplane resource validate $(XRD_DIR) --error-on-missing-schemas -; \
 	done
 	@$(MAKE) check-errors
+	@$(MAKE) check-lifecycle
 
 # Shorthand aliases
 .PHONY: render validate generate-configuration
@@ -72,6 +73,9 @@ test:
 
 check-errors:
 	python3 scripts/check-render-errors.py
+
+check-lifecycle:
+	python3 scripts/check-lifecycle.py
 
 e2e:
 	up test run $(E2E_TESTS) --e2e

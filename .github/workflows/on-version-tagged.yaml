@@ -19,7 +19,7 @@ jobs:
 
   release:
     needs: publish
-    uses: unbounded-tech/workflow-simple-release/.github/workflows/workflow.yaml@v2.1.1
+    uses: unbounded-tech/workflow-simple-release/.github/workflows/workflow.yaml@v2.1.3
     with:
       tag: ${{ github.ref_name }}
       name: ${{ github.ref_name }}

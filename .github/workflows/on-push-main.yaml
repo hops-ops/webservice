@@ -40,9 +40,9 @@ jobs:
 
         make validate:all'
   test:
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@v2.20.0
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/test.yaml@v3.0.0
   e2e:
-    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@v2.20.0
+    uses: unbounded-tech/workflows-crossplane/.github/workflows/e2e.yaml@v3.0.0
     with:
       aws: false
       timeout-minutes: 20

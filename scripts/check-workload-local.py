@@ -1,5 +1,6 @@
 """Exercise an isolated XR through the active local GitOps tree, without taking ownership."""
 import argparse
+import base64
 import copy
 import json
 from pathlib import Path
@@ -57,6 +58,7 @@ setup_verified = False
 active_fixture = fixture
 try:
     path.write_text('\n---\n'.join(json.dumps(doc) for doc in fixture['items']))
+    wait('GitOps fixture applied', lambda: kube('get', 'namespace', ns, '--ignore-not-found', '-o', 'name').strip(), timeout=600)
     wait('XR ready', ready)
     current = pod()
     name, uid = current['metadata']['name'], current['metadata']['uid']
@@ -72,19 +74,18 @@ try:
     next(d for d in rotated['items'] if d['kind'] == 'Secret')['stringData']['token'] = 'fixture-second'
     active_fixture = rotated
     path.write_text('\n---\n'.join(json.dumps(doc) for doc in rotated['items']))
+    wait('GitOps credential update applied', lambda: base64.b64decode(read('secret', 'credential')['data']['token']).decode() == 'fixture-second', timeout=600)
     wait('projected credential rotates', lambda: snapshot(name)['credential'] == 'fixture-second', timeout=180)
     assert read('pod', name)['metadata']['uid'] == uid, 'Rotation restarted the pod'
     print('PASS credential rotation preserves the running pod', flush=True)
 finally:
     # Remove only the XR from desired state, keeping caller dependencies in GitOps.
     path.write_text('\n---\n'.join(json.dumps(doc) for doc in active_fixture['items'] if doc['kind'] != 'WebService'))
-    kube('delete', 'webservice', 'collector', '-n', ns, '--ignore-not-found', '--wait=false')
-    wait('XR teardown', lambda: not kube('get', 'webservice', 'collector', '-n', ns, '--ignore-not-found', '-o', 'name').strip())
+    wait('GitOps XR teardown', lambda: not kube('get', 'webservice', 'collector', '-n', ns, '--ignore-not-found', '-o', 'name').strip(), timeout=600)
     wait('managed workload removed', lambda: not kube('get', 'services.serving.knative.dev', 'collector', '-n', ns, '--ignore-not-found', '-o', 'name').strip())
     if setup_verified:
         assert read('secret', 'credential')['metadata']['uid'] == secret_uid
         print('PASS caller-owned credential survives XR teardown', flush=True)
     path.unlink(missing_ok=True)
-    kube('delete', 'namespace', ns, '--ignore-not-found', '--wait=false')
-    kube('delete', 'environmentconfig', 'webservice-workload-proof', '--ignore-not-found')
-    wait('fixture namespace removed', lambda: not kube('get', 'namespace', ns, '--ignore-not-found', '-o', 'name').strip())
+    wait('GitOps fixture namespace removed', lambda: not kube('get', 'namespace', ns, '--ignore-not-found', '-o', 'name').strip(), timeout=600)
+    wait('GitOps platform fixture removed', lambda: not kube('get', 'environmentconfig', 'webservice-workload-proof', '--ignore-not-found', '-o', 'name').strip(), timeout=600)

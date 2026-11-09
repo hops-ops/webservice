@@ -93,6 +93,17 @@ spec:
               resources: &id001
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
+              envFrom:
+                type: array
+                description: Application ConfigMap/Secret environment sources; explicit env entries and PORT take precedence.
+                items:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+              revisionAnnotations:
+                type: object
+                description: Knative revision annotations, including startup progress deadlines. Scaling fields take precedence.
+                additionalProperties:
+                  type: string
               volumeMounts:
                 type: array
                 description: Application mounts referencing podTemplate.volumes. Secrets remain caller-owned.

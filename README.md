@@ -39,7 +39,7 @@ Private exposure needs actual internal-only gateway connectivity. A hostname or 
 
 Use `envFrom` for same-namespace Secret/ConfigMap environment sources, or `env` with Kubernetes `value`/`valueFrom` entries for configuration and same-namespace Secret references. `resources`, `probes.readiness`, `probes.startup` and `probes.liveness` configure the application container. `scaling.minReplicas` defaults to zero; use one for an always-running HTTP API. `scaling.maxReplicas`, `scaling.concurrency` and `requestTimeoutSeconds` bound concurrency and request duration. Private HTTPRoute request/backend timeouts use the same request timeout. Persistent connections and background work must be evaluated before moving an existing service to scale-to-zero.
 
-Set the listening port through `spec.port`; `PORT` is reserved and is supplied to the application with or without the login sidecar.
+`imagePullPolicy` optionally controls application image pulls. Set the listening port through `spec.port`; `PORT` is reserved and is supplied to the application with or without the login sidecar.
 
 `volumeMounts` configures application mounts against `podTemplate.volumes`, including projected Secret credentials and disposable `emptyDir` storage. Mount the directory rather than a `subPath` when credential files must rotate. `securityContext` adds application settings such as a read-only root filesystem while retaining disabled privilege escalation and dropped capabilities. Caller-supplied Secrets are not owned or deleted by WebService.
 
@@ -53,7 +53,7 @@ Keep background services at `scaling.minReplicas: 1` and verify idle CPU availab
 
 `podTemplate` passes additional Knative revision settings such as volumes, service account and scheduling. Its `containers` field is reserved; configure the application through the documented fields. Knative feature flags must permit any optional pod settings you select. Current defaults require `kubernetes.podspec-securitycontext: enabled` in Knative Serving. Authentication also requires `multi-container-probing: enabled`: the application has a TCP readiness default alongside the proxy readiness check.
 
-An application gateway is another WebService. Its image and environment settings determine upstream routing, trusted headers, cookies and native sessions. This package does not rewrite that application behavior. The login proxy preserves the incoming Host; private ingress also supplies the original external hostname in `X-Forwarded-Host` after Knative routing rewrites. Configure the application to trust the platform proxy when it needs forwarded origin headers. A UI library is a build artifact; its deployed docs/demo server is the WebService.
+An application gateway is another WebService. Its image and environment settings determine upstream routing, trusted headers, cookies and native sessions. This package does not rewrite that application behavior. Private ingress sets Knative's `K-Original-Host` to the exact external hostname so queue-proxy restores the application Host after routing. It overwrites client-supplied original/forwarded host headers. Existing Host-based origin checks continue to work; applications can use the platform's forwarded scheme headers when needed. A UI library is a build artifact; its deployed docs/demo server is the WebService.
 
 ## Enterprise scale
 

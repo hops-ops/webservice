@@ -7,7 +7,7 @@
 {{- with $e.volumeMounts }}{{- $_ := set $app "volumeMounts" . }}{{- end }}
 {{- with $e.envFrom }}{{- $_ := set $app "envFrom" . }}{{- end }}
 {{- $_ := set $app "securityContext" (mergeOverwrite (deepCopy ($e.securityContext | default dict)) $app.securityContext) }}
-{{- range $field := list "command" "args" }}{{- with (get $e $field) }}{{- $_ := set $app $field . }}{{- end }}{{- end }}
+{{- range $field := list "command" "args" "imagePullPolicy" }}{{- with (get $e $field) }}{{- $_ := set $app $field . }}{{- end }}{{- end }}
 {{- range $from, $to := dict "readiness" "readinessProbe" "liveness" "livenessProbe" "startup" "startupProbe" }}
   {{- with (get ($e.probes | default dict) $from) }}{{- $_ := set $app $to . }}{{- end }}
 {{- end }}

@@ -77,7 +77,8 @@ _cases = [
           "revisionAnnotations": {
             "build.example.com/revision": "fixture",
             "autoscaling.knative.dev/min-scale": "99"
-          }
+          },
+          "imagePullPolicy": "IfNotPresent"
         }
       },
       "extraResources": [
@@ -150,7 +151,8 @@ _cases = [
                               }
                             }
                           ],
-                          "env": []
+                          "env": [],
+                          "imagePullPolicy": "IfNotPresent"
                         },
                         {
                           "name": "worker",
@@ -188,7 +190,38 @@ _cases = [
                       "timeouts": {
                         "request": "300s",
                         "backendRequest": "300s"
-                      }
+                      },
+                      "filters": [
+                        {
+                          "type": "URLRewrite",
+                          "urlRewrite": {
+                            "hostname": "collector.staging.svc.cluster.local"
+                          }
+                        },
+                        {
+                          "type": "RequestHeaderModifier",
+                          "requestHeaderModifier": {
+                            "set": [
+                              {
+                                "name": "K-Original-Host",
+                                "value": "legacy-collector.example.com"
+                              },
+                              {
+                                "name": "X-Forwarded-Host",
+                                "value": "legacy-collector.example.com"
+                              },
+                              {
+                                "name": "X-Forwarded-Proto",
+                                "value": "https"
+                              },
+                              {
+                                "name": "X-Auth-Request-Redirect",
+                                "value": "https://legacy-collector.example.com%REQ(:PATH)%"
+                              }
+                            ]
+                          }
+                        }
+                      ]
                     }
                   ]
                 }
@@ -275,7 +308,8 @@ _cases = [
           "revisionAnnotations": {
             "build.example.com/revision": "fixture",
             "autoscaling.knative.dev/min-scale": "99"
-          }
+          },
+          "imagePullPolicy": "IfNotPresent"
         }
       },
       "extraResources": [
@@ -356,7 +390,8 @@ _cases = [
                               "name": "PORT",
                               "value": "8080"
                             }
-                          ]
+                          ],
+                          "imagePullPolicy": "IfNotPresent"
                         },
                         {
                           "name": "worker",
@@ -394,7 +429,38 @@ _cases = [
                       "timeouts": {
                         "request": "300s",
                         "backendRequest": "300s"
-                      }
+                      },
+                      "filters": [
+                        {
+                          "type": "URLRewrite",
+                          "urlRewrite": {
+                            "hostname": "collector.staging.svc.cluster.local"
+                          }
+                        },
+                        {
+                          "type": "RequestHeaderModifier",
+                          "requestHeaderModifier": {
+                            "set": [
+                              {
+                                "name": "K-Original-Host",
+                                "value": "legacy-collector.example.com"
+                              },
+                              {
+                                "name": "X-Forwarded-Host",
+                                "value": "legacy-collector.example.com"
+                              },
+                              {
+                                "name": "X-Forwarded-Proto",
+                                "value": "https"
+                              },
+                              {
+                                "name": "X-Auth-Request-Redirect",
+                                "value": "https://legacy-collector.example.com%REQ(:PATH)%"
+                              }
+                            ]
+                          }
+                        }
+                      ]
                     }
                   ]
                 }

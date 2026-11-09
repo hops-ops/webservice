@@ -29,6 +29,10 @@ spec:
                 type: string
                 description: Container image, preferably pinned by digest.
                 minLength: 1
+              imagePullPolicy:
+                type: string
+                enum: [Always, IfNotPresent, Never]
+                description: Optional application image pull policy; otherwise use Knative defaults.
               port:
                 type: integer
                 default: 8080

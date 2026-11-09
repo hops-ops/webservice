@@ -150,12 +150,7 @@ _cases = [
                               }
                             }
                           ],
-                          "env": [
-                            {
-                              "name": "PORT",
-                              "value": "8080"
-                            }
-                          ]
+                          "env": []
                         },
                         {
                           "name": "worker",

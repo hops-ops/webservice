@@ -6,7 +6,6 @@
 {{- $app := dict "name" "app" "image" $e.image "env" ($e.env | default list) "resources" ($e.resources | default dict) "securityContext" (dict "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL"))) }}
 {{- with $e.volumeMounts }}{{- $_ := set $app "volumeMounts" . }}{{- end }}
 {{- with $e.envFrom }}{{- $_ := set $app "envFrom" . }}{{- end }}
-{{- $_ := set $app "env" (append ($e.env | default list) (dict "name" "PORT" "value" (toString $e.port))) }}
 {{- $_ := set $app "securityContext" (mergeOverwrite (deepCopy ($e.securityContext | default dict)) $app.securityContext) }}
 {{- range $field := list "command" "args" }}{{- with (get $e $field) }}{{- $_ := set $app $field . }}{{- end }}{{- end }}
 {{- range $from, $to := dict "readiness" "readinessProbe" "liveness" "livenessProbe" "startup" "startupProbe" }}
@@ -14,6 +13,7 @@
 {{- end }}
 {{- $containers := list }}
 {{- if $s.auth }}
+  {{- $_ := set $app "env" (append ($e.env | default list) (dict "name" "PORT" "value" (toString $e.port))) }}
   {{- if not $app.readinessProbe }}{{- $_ := set $app "readinessProbe" (dict "tcpSocket" (dict "port" $e.port)) }}{{- end }}
   {{- $id := $state.platform.auth }}
   {{- $scheme := ternary "https" "http" $s.tls }}

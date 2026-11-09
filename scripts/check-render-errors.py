@@ -40,6 +40,19 @@ cases = [
     ("reserved issuer volume", collision, PLATFORM, "volume oidc-ca is reserved"),
 ]
 
+
+for label, change, message in [
+    ("reserved proxy sidecar", {"sidecars": [{"name": "login", "image": "example/worker:v1"}]}, "sidecar names must be unique"),
+    ("reserved app sidecar", {"sidecars": [{"name": "app", "image": "example/worker:v1"}]}, "sidecar names must be unique"),
+    ("duplicate sidecars", {"sidecars": [{"name": "worker", "image": "example/worker:v1"}] * 2}, "sidecar names must be unique"),
+    ("sidecar request port", {"sidecars": [{"name": "worker", "image": "example/worker:v1", "ports": [{"containerPort": 9000}]}]}, "sidecars cannot declare request ports"),
+    ("reserved app mount", {"volumeMounts": [{"name": "oidc-ca", "mountPath": "/tmp/ca"}]}, "application mount oidc-ca is reserved"),
+    ("public hostname override", {"hostname": "legacy.example.com", "exposure": "public"}, "hostname overrides require private exposure"),
+]:
+    invalid = copy.deepcopy(XR)
+    invalid["spec"].update(change)
+    cases.append((label, invalid, PLATFORM, message))
+
 # Up's Docker renderer mounts the project, so fixtures must stay under it.
 (ROOT / ".tmp").mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="render-errors-") as directory:

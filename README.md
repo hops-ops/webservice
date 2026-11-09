@@ -37,9 +37,17 @@ Private exposure needs actual internal-only gateway connectivity. A hostname or 
 
 [Examples](examples/webservices) cover private, public, cluster-only, authenticated, configured and observe-only adoption. Each service chooses exposure independently, including services sharing a preview namespace.
 
-Use `env` with Kubernetes `value`/`valueFrom` entries for configuration and same-namespace Secret references. `resources`, `probes.readiness`, `probes.startup` and `probes.liveness` configure the application container. `scaling.minReplicas` defaults to zero; use one for an always-running HTTP API. `scaling.maxReplicas`, `scaling.concurrency` and `requestTimeoutSeconds` bound concurrency and request duration. Persistent connections and background work must be evaluated before moving an existing service to scale-to-zero.
+Use `env` with Kubernetes `value`/`valueFrom` entries for configuration and same-namespace Secret references. `resources`, `probes.readiness`, `probes.startup` and `probes.liveness` configure the application container. `scaling.minReplicas` defaults to zero; use one for an always-running HTTP API. `scaling.maxReplicas`, `scaling.concurrency` and `requestTimeoutSeconds` bound concurrency and request duration. Private HTTPRoute request/backend timeouts use the same request timeout. Persistent connections and background work must be evaluated before moving an existing service to scale-to-zero.
 
 Set the listening port through `spec.port`; `PORT` is reserved and is supplied to the application with or without the login sidecar.
+
+`volumeMounts` configures application mounts against `podTemplate.volumes`, including projected Secret credentials and disposable `emptyDir` storage. Mount the directory rather than a `subPath` when credential files must rotate. `securityContext` adds application settings such as a read-only root filesystem while retaining disabled privilege escalation and dropped capabilities. Caller-supplied Secrets are not owned or deleted by WebService.
+
+`sidecars` adds named companion containers. Names `app`, `login`, `queue-proxy` and `istio-proxy` are reserved; companions cannot declare request ports. Configure their probes, mounts, resources and security settings explicitly. Use the operator's Knative feature settings for init containers, multi-container probing and a shared process namespace. These features are not enabled by the XR.
+
+An existing private endpoint can retain its exact DNS name through `hostname`. This override is accepted only with private exposure; ordinary services keep the default name. [Mounted service example](examples/webservices/mounted.yaml).
+
+Keep background services at `scaling.minReplicas: 1` and verify idle CPU availability on the target platform. Scale bounds apply per revision, so a maximum of one does not prevent old and new revisions from overlapping during rollout; use application coordination for singleton workers.
 
 `podTemplate` passes additional Knative revision settings such as volumes, service account and scheduling. Its `containers` field is reserved; configure the application through the documented fields. Knative feature flags must permit any optional pod settings you select. Current defaults require `kubernetes.podspec-securitycontext: enabled` in Knative Serving. Authentication also requires `multi-container-probing: enabled`: the application has a TCP readiness default alongside the proxy readiness check.
 

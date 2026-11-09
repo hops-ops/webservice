@@ -1,0 +1,43 @@
+apiVersion: workloads.hops.ops.com.ai/v1alpha1
+kind: WebService
+metadata:
+  name: collector
+  namespace: staging
+spec:
+  image: ghcr.io/example/collector:v1
+  port: 8080
+  hostname: collector-staging.example.com
+  exposure: private
+  scaling:
+    minReplicas: 1
+    maxReplicas: 1
+  securityContext:
+    readOnlyRootFilesystem: true
+  volumeMounts:
+    - name: credentials
+      mountPath: /var/run/collector
+      readOnly: true
+    - name: scratch
+      mountPath: /tmp
+  podTemplate:
+    securityContext:
+      runAsUser: 10001
+      runAsGroup: 10001
+      fsGroup: 10001
+    volumes:
+      - name: credentials
+        secret:
+          secretName: collector-credentials
+      - name: scratch
+        emptyDir:
+          sizeLimit: 1Gi
+  sidecars:
+    - name: worker
+      image: ghcr.io/example/worker:v1
+      volumeMounts:
+        - name: scratch
+          mountPath: /tmp
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]

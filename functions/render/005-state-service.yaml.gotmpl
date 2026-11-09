@@ -2,7 +2,8 @@
 {{- $eff := $state.spec.effective }}
 {{- if not (has $eff.exposure (list "private" "cluster" "public")) }}{{- fail "exposure must be private, cluster or public" }}{{- end }}
 {{- $p := $state.platform }}
-{{- $host := printf "%s.%s.%s" $name $namespace ($p.baseDomain | default "") }}
+{{- $host := $eff.hostname | default (printf "%s.%s.%s" $name $namespace ($p.baseDomain | default "")) }}
+{{- if and $eff.hostname (ne $eff.exposure "private") }}{{- fail "hostname overrides require private exposure" }}{{- end }}
 {{- $private := eq $eff.exposure "private" }}
 {{- $auth := $eff.auth.enabled }}
 {{- $tls := (mergeOverwrite (dict "enabled" true) ($p.tls | default dict)).enabled }}
@@ -14,6 +15,15 @@
 {{- if and $auth (or (empty $identity.issuerURL) (empty $identity.projectId) (empty $groups)) }}{{- fail "authentication requires platform issuerURL, projectId and allowedGroups" }}{{- end }}
 {{- if and $auth (eq (int $eff.port) 4180) }}{{- fail "port 4180 is reserved for the authentication proxy" }}{{- end }}
 {{- if hasKey ($eff.podTemplate | default dict) "containers" }}{{- fail "podTemplate.containers is reserved" }}{{- end }}
+{{- $names := dict "app" true "login" true "queue-proxy" true "istio-proxy" true }}
+{{- range ($eff.sidecars | default list) }}
+  {{- if or (empty .name) (hasKey $names .name) }}{{- fail "sidecar names must be unique and cannot use app, login, queue-proxy or istio-proxy" }}{{- end }}
+  {{- $_ := set $names .name true }}
+  {{- if hasKey . "ports" }}{{- fail "sidecars cannot declare request ports" }}{{- end }}
+{{- end }}
+{{- range ($eff.volumeMounts | default list) }}
+  {{- if eq .name "oidc-ca" }}{{- fail "application mount oidc-ca is reserved for the platform issuer CA" }}{{- end }}
+{{- end }}
 {{- $gatewayName := printf "%s-%s" $name $namespace }}
 {{- if gt (len $gatewayName) 63 }}{{- $gatewayName = printf "%s-%s" (trunc 50 $gatewayName | trimSuffix "-") (sha256sum $gatewayName | trunc 12) }}{{- end }}
 {{- $_ := set $state "service" (dict "name" $name "namespace" $namespace "host" $host "clusterHost" (printf "%s.%s.svc.cluster.local" $name $namespace) "gatewayName" $gatewayName "private" $private "auth" $auth "tls" $tls "groups" $groups "labels" $eff.labels "provider" ($p.providerConfigRef | default (dict "name" "default" "kind" "ClusterProviderConfig"))) }}

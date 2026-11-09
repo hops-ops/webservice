@@ -29,6 +29,10 @@ spec:
                 type: string
                 description: Container image, preferably pinned by digest.
                 minLength: 1
+              imagePullPolicy:
+                type: string
+                enum: [Always, IfNotPresent, Never]
+                description: Optional application image pull policy; otherwise use Knative defaults.
               port:
                 type: integer
                 default: 8080
@@ -93,6 +97,55 @@ spec:
               resources: &id001
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
+              envFrom:
+                type: array
+                description: Application ConfigMap/Secret environment sources; explicit env entries and PORT take precedence.
+                items:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+              revisionAnnotations:
+                type: object
+                description: Knative revision annotations, including startup progress deadlines. Scaling fields take precedence.
+                additionalProperties:
+                  type: string
+              volumeMounts:
+                type: array
+                description: Application mounts referencing podTemplate.volumes. Secrets remain caller-owned.
+                items:
+                  type: object
+                  required: [name, mountPath]
+                  properties:
+                    name:
+                      type: string
+                    mountPath:
+                      type: string
+                  x-kubernetes-preserve-unknown-fields: true
+              securityContext:
+                type: object
+                description: Application security settings; privilege escalation remains disabled and capabilities are dropped.
+                x-kubernetes-preserve-unknown-fields: true
+              sidecars:
+                type: array
+                description: Companion containers without request ports. Knative feature settings must permit selected fields.
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys: [name]
+                items:
+                  type: object
+                  required: [name, image]
+                  properties:
+                    name:
+                      type: string
+                      minLength: 1
+                    image:
+                      type: string
+                      minLength: 1
+                  x-kubernetes-preserve-unknown-fields: true
+              hostname:
+                type: string
+                description: Optional exact private hostname for adopting an existing endpoint. Public naming remains operator-controlled.
+                minLength: 1
+                maxLength: 253
+                pattern: ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$
               command:
                 type: array
                 items:
@@ -163,6 +216,8 @@ spec:
             x-kubernetes-validations:
             - rule: '!has(self.auth) || !self.auth.enabled || self.exposure != "cluster"'
               message: browser authentication requires a private or public HTTPS endpoint
+            - rule: '!has(self.hostname) || self.exposure == "private"'
+              message: hostname overrides require private exposure
           status:
             type: object
             properties:

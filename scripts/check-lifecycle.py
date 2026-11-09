@@ -43,7 +43,18 @@ def render(directory, xr, platform, observed=()):
         "--extra-resources=" + str(relative / "platform.json"),
         "--observed-resources=" + str(relative / "observed.yaml"),
     ], cwd=ROOT, text=True, timeout=180)
-    return [doc for doc in yaml.safe_load_all(output) if doc and doc["kind"] in ("Object", "Oidc", "Usage")]
+    docs = [doc for doc in yaml.safe_load_all(output) if doc and doc["kind"] in ("Object", "Oidc", "Usage")]
+    for doc in docs:
+        native = doc.get("spec", {}).get("forProvider", {}).get("manifest", {})
+        if native.get("apiVersion") != "serving.knative.dev/v1":
+            continue
+        containers = native["spec"]["template"]["spec"]["containers"]
+        serving = next(container for container in containers if container.get("ports"))
+        assert all(env["name"] != "PORT" for env in serving.get("env", [])), "Knative reserves PORT on its request container"
+        if serving["name"] == "login":
+            app = next(container for container in containers if container["name"] == "app")
+            assert any(env["name"] == "PORT" for env in app["env"]), "The non-serving application needs its own port"
+    return docs
 
 
 def managed(docs):

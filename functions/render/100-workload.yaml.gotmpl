@@ -1,10 +1,13 @@
 {{- if $state.platform }}
 {{- $s := $state.service }}
 {{- $e := $state.spec.effective }}
-{{- $annotations := dict "autoscaling.knative.dev/min-scale" (toString $e.scaling.minReplicas) }}
+{{- $annotations := mergeOverwrite (deepCopy ($e.revisionAnnotations | default dict)) (dict "autoscaling.knative.dev/min-scale" (toString $e.scaling.minReplicas)) }}
 {{- with $e.scaling.maxReplicas }}{{- $_ := set $annotations "autoscaling.knative.dev/max-scale" (toString .) }}{{- end }}
 {{- $app := dict "name" "app" "image" $e.image "env" ($e.env | default list) "resources" ($e.resources | default dict) "securityContext" (dict "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL"))) }}
-{{- range $field := list "command" "args" }}{{- with (get $e $field) }}{{- $_ := set $app $field . }}{{- end }}{{- end }}
+{{- with $e.volumeMounts }}{{- $_ := set $app "volumeMounts" . }}{{- end }}
+{{- with $e.envFrom }}{{- $_ := set $app "envFrom" . }}{{- end }}
+{{- $_ := set $app "securityContext" (mergeOverwrite (deepCopy ($e.securityContext | default dict)) $app.securityContext) }}
+{{- range $field := list "command" "args" "imagePullPolicy" }}{{- with (get $e $field) }}{{- $_ := set $app $field . }}{{- end }}{{- end }}
 {{- range $from, $to := dict "readiness" "readinessProbe" "liveness" "livenessProbe" "startup" "startupProbe" }}
   {{- with (get ($e.probes | default dict) $from) }}{{- $_ := set $app $to . }}{{- end }}
 {{- end }}
@@ -30,6 +33,7 @@
   {{- $_ := set $app "ports" (list (dict "name" "http1" "containerPort" $e.port)) }}
 {{- end }}
 {{- $containers = append $containers $app }}
+{{- range ($e.sidecars | default list) }}{{- $containers = append $containers . }}{{- end }}
 {{- $revision := mergeOverwrite (dict "automountServiceAccountToken" false "securityContext" (dict "runAsNonRoot" true "seccompProfile" (dict "type" "RuntimeDefault"))) (deepCopy ($e.podTemplate | default dict)) }}
 {{- $_ := set $revision "containers" $containers }}
 {{- if and $s.auth (($state.platform.auth | default dict).caBundle) }}

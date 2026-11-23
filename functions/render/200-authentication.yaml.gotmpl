@@ -31,6 +31,11 @@ spec:
     idTokenUserinfoAssertion: true
     accessTokenRoleAssertion: true
     devMode: {{ not $s.tls }}
+    # Name the Login V2 UI explicitly: Zitadel falls back to Login V1 for apps
+    # without one once the instance stops requiring a single Login V2 UI.
+    loginVersion:
+      - loginV2:
+          - baseUri: {{ $a.loginBaseURI | default (printf "%s/ui/v2/login" (trimSuffix "/" $a.issuerURL)) | quote }}
 {{- $meta := dict "name" (printf "%s-login" $name) "namespace" $namespace "labels" $s.labels }}
 {{- $secret := dict "apiVersion" "v1" "kind" "Secret" "metadata" $meta "type" "Opaque" }}
 {{- $ref := dict "patchesFrom" (dict "apiVersion" "v1" "kind" "Secret" "namespace" $namespace "name" (printf "%s-oidc" $name) "fieldPath" "data") "toFieldPath" "data" }}

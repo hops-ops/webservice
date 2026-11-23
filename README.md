@@ -61,6 +61,8 @@ Operators can provide additional EnvironmentConfigs named `webservice-<name>` an
 
 Platform auth defaults require a standard OIDC `groups` claim and a nonempty allowed-group policy. `auth.allowedGroups` explicitly overrides that list for a service. The Zitadel project must emit the corresponding groups claim (for example through the platform's existing role-to-group action). Successful login without an allowed group is denied by oauth2-proxy. The package does not create users or grant roles.
 
+The Zitadel client names its Login V2 UI: `data.auth.loginBaseURI`, or Zitadel's hosted Login V2 at `<issuerURL>/ui/v2/login` when unset. Zitadel ignores per-app login UIs while the instance requires Login V2, and sends apps without one to Login V1 once it does not.
+
 For private identity providers, `data.auth.caBundle` contains the public PEM trust bundle. It is copied to a per-service ConfigMap and used by the proxy to verify the issuer. TLS verification remains enabled. The session cookie is generated once through External Secrets' Password generator, is host-only, and is retained during ordinary reconciles. OIDC uses authorization code, confidential-client credentials and PKCE.
 
 Treat EnvironmentConfig write access, provider credentials and cross-namespace gateway permissions as platform administration. Do not store tokens in EnvironmentConfigs or application YAML. Keep account numbers, deployment domains and identity IDs in operator configuration.

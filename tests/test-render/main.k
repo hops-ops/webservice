@@ -258,7 +258,8 @@ metav1alpha1.CompositionTest {
           "forProvider": {
             "redirectUris": [
               "https://echo.preview-67.example.com/oauth2/callback"
-            ]
+            ],
+            "loginVersion": [{"loginV2": [{"baseUri": "https://auth.example.com/ui/v2/login"}]}]
           }
         }
       },

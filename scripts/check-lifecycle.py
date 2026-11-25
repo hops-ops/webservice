@@ -152,6 +152,8 @@ with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="lifecycle-") as temp
     objects = {d["metadata"]["annotations"]["crossplane.io/composition-resource-name"]: d for d in final if d["kind"] == "Object"}
     assert not {"certificate", "tls-secret", "tls-grant"} & objects.keys()
     assert objects["gateway"]["spec"]["managementPolicies"] == ["Observe"]
+    query = objects["gateway"]["spec"]["readiness"]["celQuery"]
+    assert 'https-preview' in query and "l.protocol == 'HTTPS'" in query and "ResolvedRefs" in query
     assert objects["gateway"]["spec"]["forProvider"]["manifest"] == {
         "apiVersion": "gateway.networking.k8s.io/v1", "kind": "Gateway",
         "metadata": {"name": "private-platform", "namespace": "istio-ingress"}}

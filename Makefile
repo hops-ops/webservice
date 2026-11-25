@@ -26,6 +26,7 @@ generate-configuration:
 # Examples list - mirrors GitHub Actions workflow
 # Format: example_path::observed_resources_path (observed_resources_path is optional)
 EXAMPLES := examples/webservices/minimal.yaml:: \
+    examples/webservices/shared.yaml:: \
     examples/webservices/public.yaml:: \
     examples/webservices/cluster.yaml:: \
     examples/webservices/authenticated.yaml:: \

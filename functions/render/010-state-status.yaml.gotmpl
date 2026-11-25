@@ -12,7 +12,7 @@
 {{- $keys := list "service" }}
 {{- if $state.service.private }}
   {{- $keys = concat $keys (list "route" "gateway" "backend-grant") }}
-  {{- if $state.service.tls }}{{- $keys = concat $keys (list "certificate" "tls-secret" "tls-grant") }}{{- end }}
+  {{- if and $state.service.tls (not $state.service.sharedGateway) }}{{- $keys = concat $keys (list "certificate" "tls-secret" "tls-grant") }}{{- end }}
 {{- end }}
 {{- if $state.service.auth }}
   {{- $keys = concat $keys (list "oidc" "client-secret" "cookie" "cookie-generator") }}

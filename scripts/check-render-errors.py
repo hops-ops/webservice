@@ -53,6 +53,25 @@ for label, change, message in [
     invalid["spec"].update(change)
     cases.append((label, invalid, PLATFORM, message))
 
+shared = copy.deepcopy(PLATFORM)
+shared["data"]["privateGateway"]["shared"] = {"name": "private-platform", "sectionName": "https-preview"}
+for label, hostname in [("foreign namespace", "other.example.com"), ("foreign domain", "preview-67.other.com"), ("nested hostname", "echo.preview-67.example.com"), ("overlong hostname", "10-preview-67-" + "x" * 64 + ".example.com")]:
+    invalid = copy.deepcopy(XR)
+    invalid["spec"]["hostname"] = hostname
+    cases.append((label, invalid, shared, "shared private hostname must be one label"))
+for label, change in [("empty shared configuration", {"privateGateway": {"namespace": "istio-ingress", "service": "private.example.com", "shared": {}}}), ("missing shared listener", {"privateGateway": {"namespace": "istio-ingress", "service": "private.example.com", "shared": {"name": "private-platform"}}}), ("shared plaintext", {"tls": {"enabled": False}})]:
+    invalid = copy.deepcopy(shared)
+    invalid["data"].update(change)
+    cases.append((label, XR, invalid, "shared private ingress requires name, sectionName and TLS"))
+invalid = copy.deepcopy(XR)
+invalid["metadata"]["namespace"] = "n" * 63
+cases.append(("overlong namespace", invalid, shared, "namespace is too long for a bounded hostname"))
+
+invalid = copy.deepcopy(XR)
+invalid["metadata"]["namespace"] = "10-preview-67-echo"
+invalid["spec"]["hostname"] = "10-preview-67-echo.example.com"
+cases.append(("primary versus generated collision", invalid, shared, "shared private hostname must be one label"))
+
 # Up's Docker renderer mounts the project, so fixtures must stay under it.
 (ROOT / ".tmp").mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="render-errors-") as directory:

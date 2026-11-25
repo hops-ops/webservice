@@ -142,3 +142,40 @@ with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="lifecycle-") as temp
         final = render(directory, xr, platform, observe_ready(initial))
         assert edges(final) == expected, label
         print("PASS " + label + " has only its applicable dependencies", flush=True)
+
+    shared = copy.deepcopy(PLATFORM)
+    shared["data"]["privateGateway"]["shared"] = {"name": "private-platform", "sectionName": "https-preview"}
+    shared_edges = AUTH_EDGES | CA_EDGE | {("route", "backend-grant"), ("route", "service")}
+    initial = render(directory, XR, shared)
+    final = render(directory, XR, shared, observe_ready(initial))
+    assert edges(final) == shared_edges
+    objects = {d["metadata"]["annotations"]["crossplane.io/composition-resource-name"]: d for d in final if d["kind"] == "Object"}
+    assert not {"certificate", "tls-secret", "tls-grant"} & objects.keys()
+    assert objects["gateway"]["spec"]["managementPolicies"] == ["Observe"]
+    assert objects["gateway"]["spec"]["forProvider"]["manifest"] == {
+        "apiVersion": "gateway.networking.k8s.io/v1", "kind": "Gateway",
+        "metadata": {"name": "private-platform", "namespace": "istio-ingress"}}
+    route = objects["route"]["spec"]["forProvider"]["manifest"]
+    host = "10-preview-67-echo.example.com"
+    assert route["spec"]["hostnames"] == [host]
+    assert route["spec"]["parentRefs"] == [{"name": "private-platform", "namespace": "istio-ingress", "sectionName": "https-preview"}]
+    assert route["metadata"]["annotations"]["external-dns.alpha.kubernetes.io/controller"] == "platform-wildcard"
+    oidc = next(d for d in final if d["kind"] == "Oidc")
+    assert "https://" + host + "/oauth2/callback" in str(oidc)
+    dipped = observe_ready(initial)
+    for d in dipped:
+        d["status"]["conditions"][0]["status"] = "False"
+    assert managed(render(directory, XR, shared, dipped)) == managed(final)
+    print("PASS shared ingress observes platform ownership, isolates hosts, disables DNS and retains resources during readiness dips", flush=True)
+
+    for name, namespace, explicit in [("x" * 63, "preview-67", None), ("echo", "other-preview", None), ("gateway", "preview-67", "preview-67.example.com")]:
+        xr = copy.deepcopy(XR)
+        xr["metadata"].update(name=name, namespace=namespace)
+        if explicit:
+            xr["spec"]["hostname"] = explicit
+        docs = render(directory, xr, shared)
+        route = next(d["spec"]["forProvider"]["manifest"] for d in docs if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "route")
+        label = route["spec"]["hostnames"][0].removesuffix(".example.com")
+        assert len(label) <= 63 and "." not in label
+        assert label == namespace or label.startswith(str(len(namespace)) + "-" + namespace + "-")
+    print("PASS long service names, separate namespaces and explicit primary hostnames remain single-label and namespace-owned", flush=True)

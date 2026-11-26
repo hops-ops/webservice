@@ -139,3 +139,43 @@ See [local validation](local/README.md) for the exact prerequisites and verifica
 ## License
 
 Apache-2.0.
+
+### Consume an externally registered client
+
+`auth.existingClient` selects same-namespace app credentials and a separately
+created fresh session Secret instead of provisioning a client. The platform still
+supplies issuerURL and allowedGroups; it may set `data.auth.requireExistingClient:
+true` to reject local provisioning. No projectId or Zitadel ProviderConfig is
+needed for a fresh external gate. Example:
+
+```yaml
+auth:
+  enabled: true
+  existingClient:
+    clientSecretRef:
+      name: workforce-client
+      clientIdKey: client_id
+      clientSecretKey: client_secret
+    cookieSecretRef:
+      name: workforce-session
+      key: cookie_secret
+```
+
+The operator registers the exact service callback and supplies/rotates these
+Secrets. They stay outside WebService ownership and are referenced directly;
+Secret values are neither copied nor exposed in XR status. The nonoptional refs
+and the proxy's readiness prevent the service becoming Ready without them.
+Use a fresh 32-byte session key; the external cookie name differs from managed
+login. Managed login/OIDC/cookie Secret names cannot be reused because their
+prior owners control their lifecycle. existingClient conflicts with externalName.
+
+When moving an existing managed gate, the previously observed client, credential
+bridge and cookie resources remain composed with Create/Delete disabled and their
+original provider/spec. This preserves IDs, credentials and rollback while login
+is tested; a temporary Ready=False does not remove them or block the new gate.
+They do not receive the new central project/provider configuration. After verified
+migration and explicit old-access revocation, set retainManagedResources:false
+and retire the preserved external records through their owner. Removal alone
+orphans remote identity resources; it is not revocation. Rollback restores the
+managed profile/fields while the retained resources remain. Never disable the
+browser gate or supply the central provisioning token to a consumer cluster.

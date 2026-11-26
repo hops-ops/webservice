@@ -15,7 +15,9 @@
   {{- if and $state.service.tls (not $state.service.sharedGateway) }}{{- $keys = concat $keys (list "certificate" "tls-secret" "tls-grant") }}{{- end }}
 {{- end }}
 {{- if $state.service.auth }}
+  {{- if not $state.service.externalClient }}
   {{- $keys = concat $keys (list "oidc" "client-secret" "cookie" "cookie-generator") }}
+  {{- end }}
   {{- if $state.platform.auth.caBundle }}{{- $keys = append $keys "issuer-ca" }}{{- end }}
 {{- end }}
 {{- $ready := true }}

@@ -204,3 +204,59 @@ with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="lifecycle-") as temp
         route = next(d["spec"]["forProvider"]["manifest"] for d in docs if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "route")
         assert len(route["spec"]["hostnames"][0]) == expected_length
     print("PASS complete DNS hostname boundary accepts valid generated and explicit hosts", flush=True)
+
+    external = copy.deepcopy(XR)
+    external["spec"]["auth"]["existingClient"] = {
+        "clientSecretRef": {"name": "workforce-client"},
+        "cookieSecretRef": {"name": "workforce-session"},
+    }
+    platform = copy.deepcopy(PLATFORM)
+    platform["data"]["auth"].pop("projectId")
+    platform["data"]["auth"]["requireExistingClient"] = True
+    initial = render(directory, external, platform)
+    final = render(directory, external, platform, observe_ready(initial))
+    assert not any(d["kind"] == "Oidc" for d in final), "external mode provisioned a client"
+    keys = {d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] for d in final}
+    assert not {"oidc", "client-secret", "cookie", "cookie-generator"} & keys
+    assert edges(final) == ROUTE_EDGES | TLS_EDGES | CA_EDGE
+    native = next(d["spec"]["forProvider"]["manifest"] for d in final if d["metadata"]["name"] == "echo-service")
+    login = next(c for c in native["spec"]["template"]["spec"]["containers"] if c["name"] == "login")
+    refs = {e["name"]: e["valueFrom"]["secretKeyRef"] for e in login["env"]}
+    assert refs == {
+        "OAUTH2_PROXY_CLIENT_ID": {"name": "workforce-client", "key": "client_id", "optional": False},
+        "OAUTH2_PROXY_CLIENT_SECRET": {"name": "workforce-client", "key": "client_secret", "optional": False},
+        "OAUTH2_PROXY_COOKIE_SECRET": {"name": "workforce-session", "key": "cookie_secret", "optional": False},
+    }
+    assert "--cookie-name=_hops_echo_external" in login["args"]
+    assert "--allowed-group=developer" in login["args"]
+    assert "--code-challenge-method=S256" in login["args"]
+    assert "--oidc-issuer-url=https://auth.example.com" in login["args"]
+    assert not any("skip-jwt-bearer" in a for a in login["args"])
+    # The existing TLS Secret observer remains necessary for private ingress.
+    secret_objects = {d["metadata"]["annotations"]["crossplane.io/composition-resource-name"]
+                      for d in final if d.get("spec", {}).get("forProvider", {}).get("manifest", {}).get("kind") == "Secret"}
+    assert secret_objects <= {"tls-secret"}, "external mode created an authentication Secret"
+    # Switching from managed observations must not reintroduce owning resources.
+    migrated = render(directory, external, platform, observed)
+    old_auth_keys = {"oidc", "client-secret", "cookie", "cookie-generator"}
+    retained = {d["metadata"]["annotations"]["crossplane.io/composition-resource-name"]: d for d in migrated if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] in old_auth_keys}
+    assert retained.keys() == old_auth_keys
+    for key, d in retained.items():
+        assert d["spec"]["managementPolicies"] == ["Observe", "Update", "LateInitialize"]
+        old = next(o for o in observed if o["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == key)
+        assert {k: v for k, v in d["spec"].items() if k != "managementPolicies"} == {k: v for k, v in old["spec"].items() if k != "managementPolicies"}
+    unready_legacy = copy.deepcopy(observed)
+    for d in unready_legacy:
+        d["status"]["conditions"][0]["status"] = "False"
+    assert managed(render(directory, external, platform, unready_legacy)) == managed(migrated)
+    retired = copy.deepcopy(external)
+    retired["spec"]["auth"]["existingClient"]["retainManagedResources"] = False
+    assert managed(render(directory, retired, platform, observed)) == managed(final)
+    custom = copy.deepcopy(external)
+    custom["spec"]["auth"]["existingClient"]["clientSecretRef"].update(clientIdKey="app_id", clientSecretKey="app_secret")
+    custom["spec"]["auth"]["existingClient"]["cookieSecretRef"]["key"] = "session"
+    custom_docs = render(directory, custom, platform)
+    custom_native = next(d["spec"]["forProvider"]["manifest"] for d in custom_docs if d["metadata"]["name"] == "echo-service")
+    custom_login = next(c for c in custom_native["spec"]["template"]["spec"]["containers"] if c["name"] == "login")
+    assert {e["valueFrom"]["secretKeyRef"]["key"] for e in custom_login["env"]} == {"app_id", "app_secret", "session"}
+    print("PASS external registration has no local identity/Secret ownership, requires fresh sessions, preserves private enforcement and maps Secret keys", flush=True)

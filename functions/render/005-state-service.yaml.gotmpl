@@ -29,7 +29,18 @@
 {{- if and $auth (eq $eff.exposure "cluster") }}{{- fail "browser authentication requires private or public exposure" }}{{- end }}
 {{- $identity := $p.auth | default dict }}
 {{- $groups := $eff.auth.allowedGroups | default ($identity.allowedGroups | default list) }}
-{{- if and $auth (or (empty $identity.issuerURL) (empty $identity.projectId) (empty $groups)) }}{{- fail "authentication requires platform issuerURL, projectId and allowedGroups" }}{{- end }}
+{{- $external := hasKey $eff.auth "existingClient" }}
+{{- $client := $eff.auth.existingClient | default dict }}
+{{- if and $external (not $auth) }}{{- fail "existingClient requires authentication enabled" }}{{- end }}
+{{- if and $external $eff.auth.externalName }}{{- fail "existingClient and externalName are mutually exclusive" }}{{- end }}
+{{- if and $auth (or (empty $identity.issuerURL) (empty $groups)) }}{{- fail "authentication requires platform issuerURL and allowedGroups" }}{{- end }}
+{{- if and $auth ($identity.requireExistingClient | default false) (not $external) }}{{- fail "platform requires an existing externally registered client" }}{{- end }}
+{{- if and $auth (not $external) (empty $identity.projectId) }}{{- fail "managed authentication requires platform projectId" }}{{- end }}
+{{- if and $external (or (empty (dig "clientSecretRef" "name" "" $client)) (empty (dig "cookieSecretRef" "name" "" $client))) }}{{- fail "existingClient requires clientSecretRef.name and cookieSecretRef.name" }}{{- end }}
+{{- if $external }}
+  {{- if has $client.clientSecretRef.name (list (printf "%s-login" $name) (printf "%s-oidc" $name)) }}{{- fail "existing client Secret must not reuse a managed login/OIDC Secret name" }}{{- end }}
+  {{- if eq $client.cookieSecretRef.name (printf "%s-cookie" $name) }}{{- fail "existing client requires a fresh cookie Secret with a distinct name" }}{{- end }}
+{{- end }}
 {{- if and $auth (eq (int $eff.port) 4180) }}{{- fail "port 4180 is reserved for the authentication proxy" }}{{- end }}
 {{- if hasKey ($eff.podTemplate | default dict) "containers" }}{{- fail "podTemplate.containers is reserved" }}{{- end }}
 {{- $names := dict "app" true "login" true "queue-proxy" true "istio-proxy" true }}
@@ -43,7 +54,7 @@
 {{- end }}
 {{- $gatewayName := printf "%s-%s" $name $namespace }}
 {{- if gt (len $gatewayName) 63 }}{{- $gatewayName = printf "%s-%s" (trunc 50 $gatewayName | trimSuffix "-") (sha256sum $gatewayName | trunc 12) }}{{- end }}
-{{- $_ := set $state "service" (dict "name" $name "namespace" $namespace "host" $host "clusterHost" (printf "%s.%s.svc.cluster.local" $name $namespace) "gatewayName" $gatewayName "sharedGateway" (and $private $sharedEnabled) "private" $private "auth" $auth "tls" $tls "groups" $groups "labels" $eff.labels "provider" ($p.providerConfigRef | default (dict "name" "default" "kind" "ClusterProviderConfig"))) }}
+{{- $_ := set $state "service" (dict "name" $name "namespace" $namespace "host" $host "clusterHost" (printf "%s.%s.svc.cluster.local" $name $namespace) "gatewayName" $gatewayName "sharedGateway" (and $private $sharedEnabled) "private" $private "auth" $auth "externalClient" $external "tls" $tls "groups" $groups "labels" $eff.labels "provider" ($p.providerConfigRef | default (dict "name" "default" "kind" "ClusterProviderConfig"))) }}
 {{- end }}
 
 {{- if and $state.platform $state.service.auth (($state.platform.auth | default dict).caBundle) }}

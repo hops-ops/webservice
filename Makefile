@@ -30,6 +30,7 @@ EXAMPLES := examples/webservices/minimal.yaml:: \
     examples/webservices/public.yaml:: \
     examples/webservices/cluster.yaml:: \
     examples/webservices/authenticated.yaml:: \
+    examples/webservices/external-client.yaml:: \
     examples/webservices/configured.yaml:: \
     examples/webservices/mounted.yaml:: \
     examples/webservices/import.yaml:: \

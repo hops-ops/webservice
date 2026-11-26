@@ -72,6 +72,10 @@ invalid["metadata"]["namespace"] = "10-preview-67-echo"
 invalid["spec"]["hostname"] = "10-preview-67-echo.example.com"
 cases.append(("primary versus generated collision", invalid, shared, "shared private hostname must be one label"))
 
+long_domain = copy.deepcopy(shared)
+long_domain["data"]["baseDomain"] = ".".join(["a" * 63] * 3 + ["a" * 44])
+cases.append(("complete hostname exceeds DNS length", XR, long_domain, "at most 253 characters total"))
+
 # Up's Docker renderer mounts the project, so fixtures must stay under it.
 (ROOT / ".tmp").mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="render-errors-") as directory:

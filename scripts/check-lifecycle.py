@@ -192,3 +192,15 @@ with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="lifecycle-") as temp
     assert owning_key["spec"]["forProvider"]["manifest"]["metadata"]["name"] == "echo-preview-67"
     assert not any(d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "shared-gateway" for d in from_shared)
     print("PASS profile transitions use separate observe-only and owning Gateway identities", flush=True)
+
+    for last_label, explicit, expected_length in [(42, None, 253), (44, True, 247)]:
+        platform = copy.deepcopy(shared)
+        domain = ".".join(["a" * 63] * 3 + ["a" * last_label])
+        platform["data"]["baseDomain"] = domain
+        xr = copy.deepcopy(XR)
+        if explicit:
+            xr["spec"]["hostname"] = "preview-67." + domain
+        docs = render(directory, xr, platform)
+        route = next(d["spec"]["forProvider"]["manifest"] for d in docs if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "route")
+        assert len(route["spec"]["hostnames"][0]) == expected_length
+    print("PASS complete DNS hostname boundary accepts valid generated and explicit hosts", flush=True)

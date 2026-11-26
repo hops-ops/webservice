@@ -232,7 +232,10 @@ with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="lifecycle-") as temp
     assert "--code-challenge-method=S256" in login["args"]
     assert "--oidc-issuer-url=https://auth.example.com" in login["args"]
     assert not any("skip-jwt-bearer" in a for a in login["args"])
-    assert not any(d.get("spec", {}).get("forProvider", {}).get("manifest", {}).get("kind") == "Secret" for d in final)
+    # The existing TLS Secret observer remains necessary for private ingress.
+    secret_objects = {d["metadata"]["annotations"]["crossplane.io/composition-resource-name"]
+                      for d in final if d.get("spec", {}).get("forProvider", {}).get("manifest", {}).get("kind") == "Secret"}
+    assert secret_objects <= {"tls-secret"}, "external mode created an authentication Secret"
     # Switching from managed observations must not reintroduce owning resources.
     migrated = render(directory, external, platform, observed)
     old_auth_keys = {"oidc", "client-secret", "cookie", "cookie-generator"}

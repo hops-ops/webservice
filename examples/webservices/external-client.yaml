@@ -1,0 +1,15 @@
+apiVersion: workloads.hops.ops.com.ai/v1alpha1
+kind: WebService
+metadata:
+  name: workforce-ui
+  namespace: preview-67
+spec:
+  image: hashicorp/http-echo:1.0.0
+  port: 5678
+  auth:
+    enabled: true
+    existingClient:
+      clientSecretRef:
+        name: workforce-ui-central-client
+      cookieSecretRef:
+        name: workforce-ui-central-session

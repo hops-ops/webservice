@@ -77,6 +77,45 @@ spec:
                     type: string
                     description: Adopt an existing Zitadel application using its provider
                       external name.
+                  existingClient:
+                    type: object
+                    description: Consume centrally registered client and fresh session Secrets from this namespace; no new local OIDC client or Secret is created.
+                    required: [clientSecretRef, cookieSecretRef]
+                    properties:
+                      retainManagedResources:
+                        type: boolean
+                        default: true
+                        description: Retain previously composed login resources without Create/Delete during migration; disable only after verified retirement.
+                      clientSecretRef:
+                        type: object
+                        required: [name]
+                        properties:
+                          name:
+                            type: string
+                            minLength: 1
+                            maxLength: 253
+                            pattern: ^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$
+                          clientIdKey:
+                            type: string
+                            default: client_id
+                            minLength: 1
+                          clientSecretKey:
+                            type: string
+                            default: client_secret
+                            minLength: 1
+                      cookieSecretRef:
+                        type: object
+                        required: [name]
+                        properties:
+                          name:
+                            type: string
+                            minLength: 1
+                            maxLength: 253
+                            pattern: ^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$
+                          key:
+                            type: string
+                            default: cookie_secret
+                            minLength: 1
               env:
                 type: array
                 items:

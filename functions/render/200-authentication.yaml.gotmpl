@@ -1,6 +1,7 @@
 {{- if and $state.platform $state.service.auth }}
 {{- $s := $state.service }}
 {{- $a := $state.platform.auth }}
+{{- if not $s.externalClient }}
 ---
 apiVersion: application.zitadel.m.crossplane.io/v1alpha1
 kind: Oidc
@@ -46,6 +47,34 @@ spec:
 {{- $cookie := dict "apiVersion" "external-secrets.io/v1" "kind" "ExternalSecret" "metadata" (dict "name" (printf "%s-cookie" $name) "namespace" $namespace "labels" $s.labels) "spec" (dict "refreshPolicy" "CreatedOnce" "target" (dict "name" (printf "%s-cookie" $name) "creationPolicy" "Owner") "dataFrom" (list (dict "sourceRef" (dict "generatorRef" (dict "apiVersion" "generators.external-secrets.io/v1alpha1" "kind" "Password" "name" (printf "%s-cookie" $name)))))) }}
 {{ include "webservice.object" (dict "state" $state "key" "cookie" "manifest" $cookie "policy" "DeriveFromObject") }}
 {{ include "webservice.usage" (dict "state" $state "by" "cookie" "of" "cookie-generator") }}
+{{- else }}
+{{- /* Keep existing managed identity/keys during a verified external handoff.
+      New external clients have none; presence, never Ready, controls retention. */}}
+{{- $keep := true }}
+{{- if hasKey $state.spec.effective.auth.existingClient "retainManagedResources" }}{{- $keep = $state.spec.effective.auth.existingClient.retainManagedResources }}{{- end }}
+{{- if $keep }}
+{{- range $key := list "oidc" "client-secret" "cookie" "cookie-generator" }}
+{{- with (get $state.observed $key | default dict).resource }}
+---
+apiVersion: {{ .apiVersion }}
+kind: {{ .kind }}
+metadata:
+  name: {{ .metadata.name }}
+  labels: {{ $s.labels | toJson }}
+  annotations:
+    {{ setResourceNameAnnotation $key }}
+    {{- with index (.metadata.annotations | default dict) "crossplane.io/external-name" }}
+    crossplane.io/external-name: {{ . | quote }}
+    {{- end }}
+spec:
+  managementPolicies: [Observe, Update, LateInitialize]
+  {{- omit .spec "managementPolicies" | toYaml | nindent 2 }}
+{{- end }}
+{{- end }}
+{{ include "webservice.usage" (dict "state" $state "by" "client-secret" "of" "oidc" "ofApi" "application.zitadel.m.crossplane.io/v1alpha1" "ofKind" "Oidc") }}
+{{ include "webservice.usage" (dict "state" $state "by" "cookie" "of" "cookie-generator") }}
+{{- end }}
+{{- end }}
 {{- with $a.caBundle }}
 {{- $ca := dict "apiVersion" "v1" "kind" "ConfigMap" "metadata" (dict "name" (printf "%s-issuer-ca" $name) "namespace" $namespace "labels" $s.labels) "data" (dict "ca.crt" .) }}
 {{ include "webservice.object" (dict "state" $state "key" "issuer-ca" "manifest" $ca) }}

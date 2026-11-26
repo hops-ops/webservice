@@ -76,6 +76,35 @@ long_domain = copy.deepcopy(shared)
 long_domain["data"]["baseDomain"] = ".".join(["a" * 63] * 3 + ["a" * 44])
 cases.append(("complete hostname exceeds DNS length", XR, long_domain, "at most 253 characters total"))
 
+# External clients must never silently fall back to local provisioning.
+external = copy.deepcopy(XR)
+external["spec"]["auth"] = {"enabled": True, "existingClient": {
+    "clientSecretRef": {"name": "workforce-client"},
+    "cookieSecretRef": {"name": "workforce-session"},
+}}
+required_external = copy.deepcopy(PLATFORM)
+required_external["data"]["auth"].pop("projectId")
+required_external["data"]["auth"]["requireExistingClient"] = True
+missing_ref = copy.deepcopy(external)
+missing_ref["spec"]["auth"]["existingClient"].pop("cookieSecretRef")
+cases.append(("missing external session", missing_ref, required_external, "requires clientSecretRef.name and cookieSecretRef.name"))
+local = copy.deepcopy(XR)
+local["spec"]["auth"] = {"enabled": True}
+cases.append(("operator requires external registration", local, required_external, "platform requires an existing externally registered client"))
+for label, field, value, message in [
+    ("reused managed client", "clientSecretRef", "echo-login", "must not reuse a managed login/OIDC Secret name"),
+    ("reused managed session", "cookieSecretRef", "echo-cookie", "requires a fresh cookie Secret"),
+]:
+    invalid = copy.deepcopy(external)
+    invalid["spec"]["auth"]["existingClient"][field]["name"] = value
+    cases.append((label, invalid, required_external, message))
+invalid = copy.deepcopy(external)
+invalid["spec"]["auth"]["externalName"] = "old-client"
+cases.append(("conflicting client ownership", invalid, required_external, "mutually exclusive"))
+invalid = copy.deepcopy(external)
+invalid["spec"]["auth"]["enabled"] = False
+cases.append(("disabled external login", invalid, required_external, "requires authentication enabled"))
+
 # Up's Docker renderer mounts the project, so fixtures must stay under it.
 (ROOT / ".tmp").mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="render-errors-") as directory:

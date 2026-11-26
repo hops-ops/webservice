@@ -142,3 +142,65 @@ with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="lifecycle-") as temp
         final = render(directory, xr, platform, observe_ready(initial))
         assert edges(final) == expected, label
         print("PASS " + label + " has only its applicable dependencies", flush=True)
+
+    shared = copy.deepcopy(PLATFORM)
+    shared["data"]["privateGateway"]["shared"] = {"name": "private-platform", "sectionName": "https-preview"}
+    shared_edges = AUTH_EDGES | CA_EDGE | {("route", "backend-grant"), ("route", "service")}
+    initial = render(directory, XR, shared)
+    final = render(directory, XR, shared, observe_ready(initial))
+    assert edges(final) == shared_edges
+    objects = {d["metadata"]["annotations"]["crossplane.io/composition-resource-name"]: d for d in final if d["kind"] == "Object"}
+    assert not {"gateway", "certificate", "tls-secret", "tls-grant"} & objects.keys()
+    assert objects["shared-gateway"]["spec"]["managementPolicies"] == ["Observe"]
+    query = objects["shared-gateway"]["spec"]["readiness"]["celQuery"]
+    assert 'https-preview' in query and "l.protocol == 'HTTPS'" in query and "ResolvedRefs" in query
+    assert objects["shared-gateway"]["spec"]["forProvider"]["manifest"] == {
+        "apiVersion": "gateway.networking.k8s.io/v1", "kind": "Gateway",
+        "metadata": {"name": "private-platform", "namespace": "istio-ingress"}}
+    route = objects["route"]["spec"]["forProvider"]["manifest"]
+    host = "10-preview-67-echo.example.com"
+    assert route["spec"]["hostnames"] == [host]
+    assert route["spec"]["parentRefs"] == [{"name": "private-platform", "namespace": "istio-ingress", "sectionName": "https-preview"}]
+    assert route["metadata"]["annotations"]["external-dns.alpha.kubernetes.io/controller"] == "platform-wildcard"
+    oidc = next(d for d in final if d["kind"] == "Oidc")
+    assert "https://" + host + "/oauth2/callback" in str(oidc)
+    dipped = observe_ready(initial)
+    for d in dipped:
+        d["status"]["conditions"][0]["status"] = "False"
+    assert managed(render(directory, XR, shared, dipped)) == managed(final)
+    print("PASS shared ingress observes platform ownership, isolates hosts, disables DNS and retains resources during readiness dips", flush=True)
+
+    for name, namespace, explicit in [("x" * 63, "preview-67", None), ("echo", "other-preview", None), ("gateway", "preview-67", "preview-67.example.com")]:
+        xr = copy.deepcopy(XR)
+        xr["metadata"].update(name=name, namespace=namespace)
+        if explicit:
+            xr["spec"]["hostname"] = explicit
+        docs = render(directory, xr, shared)
+        route = next(d["spec"]["forProvider"]["manifest"] for d in docs if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "route")
+        label = route["spec"]["hostnames"][0].removesuffix(".example.com")
+        assert len(label) <= 63 and "." not in label
+        assert label == namespace or label.startswith(str(len(namespace)) + "-" + namespace + "-")
+    print("PASS long service names, separate namespaces and explicit primary hostnames remain single-label and namespace-owned", flush=True)
+
+    # Mode changes must never elevate a shared observer into an owning resource.
+    from_owned = render(directory, XR, shared, observed)
+    shared_key = next(d for d in from_owned if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "shared-gateway")
+    assert shared_key["spec"]["managementPolicies"] == ["Observe"]
+    assert not any(d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "gateway" for d in from_owned)
+    from_shared = render(directory, XR, PLATFORM, observe_ready(render(directory, XR, shared)))
+    owning_key = next(d for d in from_shared if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "gateway")
+    assert owning_key["spec"]["forProvider"]["manifest"]["metadata"]["name"] == "echo-preview-67"
+    assert not any(d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "shared-gateway" for d in from_shared)
+    print("PASS profile transitions use separate observe-only and owning Gateway identities", flush=True)
+
+    for last_label, explicit, expected_length in [(42, None, 253), (44, True, 247)]:
+        platform = copy.deepcopy(shared)
+        domain = ".".join(["a" * 63] * 3 + ["a" * last_label])
+        platform["data"]["baseDomain"] = domain
+        xr = copy.deepcopy(XR)
+        if explicit:
+            xr["spec"]["hostname"] = "preview-67." + domain
+        docs = render(directory, xr, platform)
+        route = next(d["spec"]["forProvider"]["manifest"] for d in docs if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "route")
+        assert len(route["spec"]["hostnames"][0]) == expected_length
+    print("PASS complete DNS hostname boundary accepts valid generated and explicit hosts", flush=True)

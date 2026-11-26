@@ -22,3 +22,22 @@ data:
     providerConfigRef:
       name: default
       kind: ClusterProviderConfig
+
+---
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: webservice-preview
+data:
+  baseDomain: preview.example.com
+  providerConfigRef:
+    name: default
+    kind: ClusterProviderConfig
+  privateGateway:
+    namespace: istio-ingress
+    service: private-preview-istio.istio-ingress.svc.cluster.local
+    shared:
+      name: private-preview
+      sectionName: https-preview
+  tls:
+    enabled: true

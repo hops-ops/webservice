@@ -53,6 +53,30 @@ Keep background services at `scaling.minReplicas: 1` and verify idle CPU availab
 
 `podTemplate` passes additional Knative revision settings such as volumes, service account and scheduling. Its `containers` field is reserved; configure the application through the documented fields. Knative feature flags must permit any optional pod settings you select. Current defaults require `kubernetes.podspec-securitycontext: enabled` in Knative Serving. Authentication also requires `multi-container-probing: enabled`: the application has a TCP readiness default alongside the proxy readiness check.
 
+### Shared private wildcard ingress
+
+Operators can opt a platform profile into a pre-existing common HTTPS listener:
+
+```yaml
+privateGateway:
+  namespace: istio-ingress
+  service: private-preview-istio.istio-ingress.svc.cluster.local
+  shared:
+    name: private-preview
+    sectionName: https-preview
+tls:
+  enabled: true
+baseDomain: preview.example.com
+```
+
+See [the shared example](examples/webservices/shared.yaml) and [platform profiles](examples/platform.yaml). Existing profiles keep their exact-host Gateway/certificate behavior. Shared mode uses a separate `shared-gateway` observation resource with `managementPolicies: [Observe]`; its identity never becomes an owning per-service `gateway` resource when profiles change. It owns only its workload, HTTPRoute and backend grant. It never creates, copies, reads or deletes a wildcard TLS Secret or certificate. Deleting a preview leaves shared ingress/DNS intact. Readiness requires the selected terminating HTTPS listener's current Accepted/Programmed/ResolvedRefs conditions and the route's current Accepted/ResolvedRefs conditions; consumers must still probe DNS, trusted TLS and HTTP before publishing a link.
+
+The platform owns wildcard DNS, automatic certificate renewal, a single listener for the certificate, and namespace admission. Routes set `external-dns.alpha.kubernetes.io/controller: platform-wildcard` so ExternalDNS ignores them: publish the DNS-only wildcard independently, retaining its TXT owner. Exact DNS/TXT records override wildcard matching and must be inventoried before migrating an existing host. Do not attach the same certificate to separate logical Gateways: HTTP/2 connection reuse can route a second hostname to the wrong listener.
+
+Default hosts are `<namespace-length>-<namespace>-<service>.<baseDomain>` (for example `10-preview-67-echo.preview.example.com`). Long service labels retain a 12-hex digest; namespaces must fit the complete length-prefixed portion (at most 45 characters). An explicit `hostname` may use `<namespace>.<baseDomain>` for a primary application or a single label beginning with `<namespace-length>-<namespace>-`. Other namespaces, nested names and foreign domains fail rendering. The length prefix removes delimiter ambiguity. The platform must enforce the same namespace/hostname rule on direct HTTPRoute writes through admission, and control namespace labels/RBAC; template checks alone are not a Kubernetes authorization boundary. Primary namespace overrides beginning with a numeric length prefix (`^[0-9]+-`) are rejected to keep primary and generated names disjoint. Enforce the same rule in platform admission.
+
+Migrate by first provisioning and verifying the shared certificate, listener, namespace admission and wildcard DNS; then opt in one new preview through `platformRef.name`. Move its generated URL, OAuth callbacks, logout URLs and cookies together. Keep old profiles/routes until existing previews drain. Roll back the consumer profile and hostname together; shared platform assets are independent of preview cleanup.
+
 An application gateway is another WebService. Its image and environment settings determine upstream routing, trusted headers, cookies and native sessions. This package does not rewrite that application behavior. Private ingress sets Knative's `K-Original-Host` to the exact external hostname so queue-proxy restores the application Host after routing. It overwrites client-supplied original/forwarded host headers. Existing Host-based origin checks continue to work; applications can use the platform's forwarded scheme headers when needed. A UI library is a build artifact; its deployed docs/demo server is the WebService.
 
 ## Enterprise scale

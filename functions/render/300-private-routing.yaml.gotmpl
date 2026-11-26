@@ -3,6 +3,7 @@
 {{- $p := $state.platform }}
 {{- $g := $p.privateGateway }}
 {{- $local := $p.knativeLocalGateway | default (dict "name" "knative-local-gateway-istio" "namespace" "knative-serving" "port" 80) }}
+{{- if not $s.sharedGateway }}
 {{- $meta := dict "name" (printf "%s-tls" $name) "namespace" $namespace "labels" $s.labels }}
 {{- $listener := dict "name" "web" "hostname" $s.host "port" 80 "protocol" "HTTP" "allowedRoutes" (dict "namespaces" (dict "from" "Selector" "selector" (dict "matchLabels" (dict "kubernetes.io/metadata.name" $namespace)))) }}
 {{- if $s.tls }}
@@ -23,16 +24,30 @@
 {{- end }}
 {{- $gateway := dict "apiVersion" "gateway.networking.k8s.io/v1" "kind" "Gateway" "metadata" (dict "name" $s.gatewayName "namespace" $g.namespace "labels" $s.labels) "spec" (dict "gatewayClassName" ($g.className | default "istio") "addresses" (list (dict "type" "Hostname" "value" $g.service)) "listeners" (list $listener)) }}
 {{ include "webservice.object" (dict "state" $state "key" "gateway" "manifest" $gateway "policy" "DeriveFromCelQuery" "query" "object.status.conditions.exists(c, c.type == 'Accepted' && c.status == 'True' && c.observedGeneration == object.metadata.generation) && object.status.conditions.exists(c, c.type == 'Programmed' && c.status == 'True' && c.observedGeneration == object.metadata.generation)") }}
+{{- else }}
+{{- /* Observe only: deleting a WebService can never delete platform ingress. */}}
+{{- $gateway := dict "apiVersion" "gateway.networking.k8s.io/v1" "kind" "Gateway" "metadata" (dict "name" $g.shared.name "namespace" $g.namespace) }}
+{{- $query := printf "object.spec.listeners.exists(l, l.name == %s && l.protocol == 'HTTPS' && l.tls.mode == 'Terminate') && object.status.listeners.exists(l, l.name == %s && ['Accepted', 'Programmed', 'ResolvedRefs'].all(t, l.conditions.exists(c, c.type == t && c.status == 'True' && c.observedGeneration == object.metadata.generation)))" (toJson $g.shared.sectionName) (toJson $g.shared.sectionName) }}
+{{ include "webservice.object" (dict "state" $state "key" "shared-gateway" "manifest" $gateway "managementPolicies" (list "Observe") "policy" "DeriveFromCelQuery" "query" $query) }}
+{{- end }}
 {{- $backend := dict "apiVersion" "gateway.networking.k8s.io/v1beta1" "kind" "ReferenceGrant" "metadata" (dict "name" $s.gatewayName "namespace" $local.namespace "labels" $s.labels) "spec" (dict "from" (list (dict "group" "gateway.networking.k8s.io" "kind" "HTTPRoute" "namespace" $namespace)) "to" (list (dict "group" "" "kind" "Service" "name" $local.name))) }}
 {{ include "webservice.object" (dict "state" $state "key" "backend-grant" "manifest" $backend) }}
 {{- $scheme := ternary "https" "http" $s.tls }}
 {{- $filters := list (dict "type" "URLRewrite" "urlRewrite" (dict "hostname" $s.clusterHost)) (dict "type" "RequestHeaderModifier" "requestHeaderModifier" (dict "set" (list (dict "name" "K-Original-Host" "value" $s.host) (dict "name" "X-Forwarded-Host" "value" $s.host) (dict "name" "X-Forwarded-Proto" "value" $scheme) (dict "name" "X-Auth-Request-Redirect" "value" (printf "%s://%s%%REQ(:PATH)%%" $scheme $s.host))))) }}
-{{- $route := dict "apiVersion" "gateway.networking.k8s.io/v1" "kind" "HTTPRoute" "metadata" (dict "name" (printf "%s-private" $name) "namespace" $namespace "labels" $s.labels "annotations" (dict "external-dns.alpha.kubernetes.io/cloudflare-proxied" "false" "external-dns.alpha.kubernetes.io/ttl" "120")) "spec" (dict "parentRefs" (list (dict "name" $s.gatewayName "namespace" $g.namespace "sectionName" "web")) "hostnames" (list $s.host) "rules" (list (dict "timeouts" (dict "request" (printf "%vs" ($state.spec.effective.requestTimeoutSeconds | default 300)) "backendRequest" (printf "%vs" ($state.spec.effective.requestTimeoutSeconds | default 300))) "filters" $filters "backendRefs" (list (dict "group" "" "kind" "Service" "name" $local.name "namespace" $local.namespace "port" ($local.port | default 80)))))) }}
+{{- $parent := dict "name" $s.gatewayName "namespace" $g.namespace "sectionName" "web" }}
+{{- $annotations := dict "external-dns.alpha.kubernetes.io/cloudflare-proxied" "false" "external-dns.alpha.kubernetes.io/ttl" "120" }}
+{{- if $s.sharedGateway }}
+  {{- $parent = dict "name" $g.shared.name "namespace" $g.namespace "sectionName" $g.shared.sectionName }}
+  {{- $_ := set $annotations "external-dns.alpha.kubernetes.io/controller" "platform-wildcard" }}
+{{- end }}
+{{- $route := dict "apiVersion" "gateway.networking.k8s.io/v1" "kind" "HTTPRoute" "metadata" (dict "name" (printf "%s-private" $name) "namespace" $namespace "labels" $s.labels "annotations" $annotations) "spec" (dict "parentRefs" (list $parent) "hostnames" (list $s.host) "rules" (list (dict "timeouts" (dict "request" (printf "%vs" ($state.spec.effective.requestTimeoutSeconds | default 300)) "backendRequest" (printf "%vs" ($state.spec.effective.requestTimeoutSeconds | default 300))) "filters" $filters "backendRefs" (list (dict "group" "" "kind" "Service" "name" $local.name "namespace" $local.namespace "port" ($local.port | default 80)))))) }}
 {{ include "webservice.object" (dict "state" $state "key" "route" "manifest" $route "policy" "DeriveFromCelQuery" "query" "object.status.parents.exists(p, p.conditions.exists(c, c.type == 'Accepted' && c.status == 'True' && c.observedGeneration == object.metadata.generation) && p.conditions.exists(c, c.type == 'ResolvedRefs' && c.status == 'True' && c.observedGeneration == object.metadata.generation))") }}
-{{- range $parent := list "gateway" "backend-grant" "service" }}
+{{- $parents := list "backend-grant" "service" }}
+{{- if not $s.sharedGateway }}{{- $parents = prepend $parents "gateway" }}{{- end }}
+{{- range $parent := $parents }}
 {{ include "webservice.usage" (dict "state" $state "by" "route" "of" $parent) }}
 {{- end }}
-{{- if $s.tls }}
+{{- if and $s.tls (not $s.sharedGateway) }}
 {{ include "webservice.usage" (dict "state" $state "by" "gateway" "of" "certificate") }}
 {{ include "webservice.usage" (dict "state" $state "by" "gateway" "of" "tls-grant") }}
 {{- end }}

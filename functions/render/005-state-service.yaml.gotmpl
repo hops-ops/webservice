@@ -2,11 +2,28 @@
 {{- $eff := $state.spec.effective }}
 {{- if not (has $eff.exposure (list "private" "cluster" "public")) }}{{- fail "exposure must be private, cluster or public" }}{{- end }}
 {{- $p := $state.platform }}
+{{- $shared := (dig "privateGateway" "shared" dict $p) | default dict }}
+{{- $sharedEnabled := hasKey ($p.privateGateway | default dict) "shared" }}
 {{- $host := $eff.hostname | default (printf "%s.%s.%s" $name $namespace ($p.baseDomain | default "")) }}
 {{- if and $eff.hostname (ne $eff.exposure "private") }}{{- fail "hostname overrides require private exposure" }}{{- end }}
 {{- $private := eq $eff.exposure "private" }}
 {{- $auth := $eff.auth.enabled }}
 {{- $tls := (mergeOverwrite (dict "enabled" true) ($p.tls | default dict)).enabled }}
+{{- if and $sharedEnabled $private }}
+  {{- if or (empty $shared.name) (empty $shared.sectionName) (not $tls) }}{{- fail "shared private ingress requires name, sectionName and TLS" }}{{- end }}
+  {{- $prefix := printf "%d-%s-" (len $namespace) $namespace }}
+  {{- if gt (len $prefix) 49 }}{{- fail "shared private ingress namespace is too long for a bounded hostname" }}{{- end }}
+  {{- $label := printf "%s%s" $prefix $name }}
+  {{- if gt (len $label) 63 }}
+    {{- $label = printf "%s%s-%s" $prefix (trunc (int (sub 50 (len $prefix))) $name | trimSuffix "-") (sha256sum $name | trunc 12) }}
+  {{- end }}
+  {{- $host = $eff.hostname | default (printf "%s.%s" $label $p.baseDomain) }}
+  {{- $suffix := printf ".%s" $p.baseDomain }}
+  {{- $hostLabel := trimSuffix $suffix $host }}
+  {{- if or (gt (len $host) 253) (not (hasSuffix $suffix $host)) (not (regexMatch "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$" $hostLabel)) (and (eq $hostLabel $namespace) (regexMatch "^[0-9]+-" $namespace)) (and (ne $hostLabel $namespace) (not (hasPrefix $prefix $hostLabel))) }}
+    {{- fail "shared private hostname must be one label in the platform domain owned by its namespace, at most 253 characters total" }}
+  {{- end }}
+{{- end }}
 {{- if and (ne $eff.exposure "cluster") (empty $p.baseDomain) }}{{- fail "platform baseDomain is required for private/public exposure" }}{{- end }}
 {{- if and $private (or (empty (dig "privateGateway" "service" "" $p)) (empty (dig "privateGateway" "namespace" "" $p))) }}{{- fail "private exposure requires a platform privateGateway service and namespace" }}{{- end }}
 {{- if and $auth (eq $eff.exposure "cluster") }}{{- fail "browser authentication requires private or public exposure" }}{{- end }}
@@ -26,7 +43,7 @@
 {{- end }}
 {{- $gatewayName := printf "%s-%s" $name $namespace }}
 {{- if gt (len $gatewayName) 63 }}{{- $gatewayName = printf "%s-%s" (trunc 50 $gatewayName | trimSuffix "-") (sha256sum $gatewayName | trunc 12) }}{{- end }}
-{{- $_ := set $state "service" (dict "name" $name "namespace" $namespace "host" $host "clusterHost" (printf "%s.%s.svc.cluster.local" $name $namespace) "gatewayName" $gatewayName "private" $private "auth" $auth "tls" $tls "groups" $groups "labels" $eff.labels "provider" ($p.providerConfigRef | default (dict "name" "default" "kind" "ClusterProviderConfig"))) }}
+{{- $_ := set $state "service" (dict "name" $name "namespace" $namespace "host" $host "clusterHost" (printf "%s.%s.svc.cluster.local" $name $namespace) "gatewayName" $gatewayName "sharedGateway" (and $private $sharedEnabled) "private" $private "auth" $auth "tls" $tls "groups" $groups "labels" $eff.labels "provider" ($p.providerConfigRef | default (dict "name" "default" "kind" "ClusterProviderConfig"))) }}
 {{- end }}
 
 {{- if and $state.platform $state.service.auth (($state.platform.auth | default dict).caBundle) }}

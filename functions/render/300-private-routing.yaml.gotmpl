@@ -28,7 +28,7 @@
 {{- /* Observe only: deleting a WebService can never delete platform ingress. */}}
 {{- $gateway := dict "apiVersion" "gateway.networking.k8s.io/v1" "kind" "Gateway" "metadata" (dict "name" $g.shared.name "namespace" $g.namespace) }}
 {{- $query := printf "object.spec.listeners.exists(l, l.name == %s && l.protocol == 'HTTPS' && l.tls.mode == 'Terminate') && object.status.listeners.exists(l, l.name == %s && ['Accepted', 'Programmed', 'ResolvedRefs'].all(t, l.conditions.exists(c, c.type == t && c.status == 'True' && c.observedGeneration == object.metadata.generation)))" (toJson $g.shared.sectionName) (toJson $g.shared.sectionName) }}
-{{ include "webservice.object" (dict "state" $state "key" "gateway" "manifest" $gateway "managementPolicies" (list "Observe") "policy" "DeriveFromCelQuery" "query" $query) }}
+{{ include "webservice.object" (dict "state" $state "key" "shared-gateway" "manifest" $gateway "managementPolicies" (list "Observe") "policy" "DeriveFromCelQuery" "query" $query) }}
 {{- end }}
 {{- $backend := dict "apiVersion" "gateway.networking.k8s.io/v1beta1" "kind" "ReferenceGrant" "metadata" (dict "name" $s.gatewayName "namespace" $local.namespace "labels" $s.labels) "spec" (dict "from" (list (dict "group" "gateway.networking.k8s.io" "kind" "HTTPRoute" "namespace" $namespace)) "to" (list (dict "group" "" "kind" "Service" "name" $local.name))) }}
 {{ include "webservice.object" (dict "state" $state "key" "backend-grant" "manifest" $backend) }}

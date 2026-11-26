@@ -150,11 +150,11 @@ with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="lifecycle-") as temp
     final = render(directory, XR, shared, observe_ready(initial))
     assert edges(final) == shared_edges
     objects = {d["metadata"]["annotations"]["crossplane.io/composition-resource-name"]: d for d in final if d["kind"] == "Object"}
-    assert not {"certificate", "tls-secret", "tls-grant"} & objects.keys()
-    assert objects["gateway"]["spec"]["managementPolicies"] == ["Observe"]
-    query = objects["gateway"]["spec"]["readiness"]["celQuery"]
+    assert not {"gateway", "certificate", "tls-secret", "tls-grant"} & objects.keys()
+    assert objects["shared-gateway"]["spec"]["managementPolicies"] == ["Observe"]
+    query = objects["shared-gateway"]["spec"]["readiness"]["celQuery"]
     assert 'https-preview' in query and "l.protocol == 'HTTPS'" in query and "ResolvedRefs" in query
-    assert objects["gateway"]["spec"]["forProvider"]["manifest"] == {
+    assert objects["shared-gateway"]["spec"]["forProvider"]["manifest"] == {
         "apiVersion": "gateway.networking.k8s.io/v1", "kind": "Gateway",
         "metadata": {"name": "private-platform", "namespace": "istio-ingress"}}
     route = objects["route"]["spec"]["forProvider"]["manifest"]
@@ -181,3 +181,14 @@ with tempfile.TemporaryDirectory(dir=ROOT / ".tmp", prefix="lifecycle-") as temp
         assert len(label) <= 63 and "." not in label
         assert label == namespace or label.startswith(str(len(namespace)) + "-" + namespace + "-")
     print("PASS long service names, separate namespaces and explicit primary hostnames remain single-label and namespace-owned", flush=True)
+
+    # Mode changes must never elevate a shared observer into an owning resource.
+    from_owned = render(directory, XR, shared, observed)
+    shared_key = next(d for d in from_owned if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "shared-gateway")
+    assert shared_key["spec"]["managementPolicies"] == ["Observe"]
+    assert not any(d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "gateway" for d in from_owned)
+    from_shared = render(directory, XR, PLATFORM, observe_ready(render(directory, XR, shared)))
+    owning_key = next(d for d in from_shared if d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "gateway")
+    assert owning_key["spec"]["forProvider"]["manifest"]["metadata"]["name"] == "echo-preview-67"
+    assert not any(d["metadata"]["annotations"]["crossplane.io/composition-resource-name"] == "shared-gateway" for d in from_shared)
+    print("PASS profile transitions use separate observe-only and owning Gateway identities", flush=True)
